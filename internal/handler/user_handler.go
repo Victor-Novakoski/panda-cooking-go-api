@@ -34,7 +34,7 @@ func (h *UserHandler) create(c *gin.Context) {
 
 	user, err := h.service.Create(input)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 
@@ -46,7 +46,7 @@ func (h *UserHandler) getProfile(c *gin.Context) {
 
 	user, err := h.service.GetProfile(userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 
@@ -64,7 +64,7 @@ func (h *UserHandler) update(c *gin.Context) {
 
 	user, err := h.service.Update(userID, input)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 
@@ -75,7 +75,7 @@ func (h *UserHandler) delete(c *gin.Context) {
 	userID := c.GetString(middleware.UserIDKey)
 
 	if err := h.service.Delete(userID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 
@@ -87,7 +87,7 @@ func (h *UserHandler) getFavoriteRecipes(c *gin.Context) {
 
 	favorites, err := h.service.GetFavoriteRecipes(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 

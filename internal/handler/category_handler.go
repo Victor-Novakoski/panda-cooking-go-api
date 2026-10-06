@@ -23,7 +23,7 @@ func (h *CategoryHandler) RegisterRoutes(r *gin.RouterGroup) {
 func (h *CategoryHandler) getAll(c *gin.Context) {
 	categories, err := h.service.GetAll()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, categories)

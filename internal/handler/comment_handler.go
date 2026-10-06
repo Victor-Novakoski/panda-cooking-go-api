@@ -35,7 +35,7 @@ func (h *CommentHandler) create(c *gin.Context) {
 	userID := c.GetString(middleware.UserIDKey)
 	comment, err := h.service.Create(userID, input)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 
@@ -45,7 +45,7 @@ func (h *CommentHandler) create(c *gin.Context) {
 func (h *CommentHandler) getAll(c *gin.Context) {
 	comments, err := h.service.GetAll()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, comments)
@@ -67,7 +67,7 @@ func (h *CommentHandler) update(c *gin.Context) {
 	userID := c.GetString(middleware.UserIDKey)
 	comment, err := h.service.Update(uint(id), userID, input)
 	if err != nil {
-		c.JSON(statusFromErr(err), gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 
@@ -85,7 +85,7 @@ func (h *CommentHandler) delete(c *gin.Context) {
 	isAdm := c.GetBool(middleware.IsAdmKey)
 
 	if err := h.service.Delete(uint(id), userID, isAdm); err != nil {
-		c.JSON(statusFromErr(err), gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 

@@ -54,6 +54,17 @@ func TestUserService_Create(t *testing.T) {
 
 		require.Error(t, err)
 	})
+
+	t.Run("e-mail já cadastrado retorna conflito", func(t *testing.T) {
+		repo := &mocks.UserRepoMock{
+			CreateFn: func(user *model.User) error { return gorm.ErrDuplicatedKey },
+		}
+		svc := service.NewUserService(repo, testSecret)
+
+		_, err := svc.Create(service.CreateUserInput{Name: "Victor", Email: "victor@email.com", Password: "123456"})
+
+		assert.ErrorIs(t, err, service.ErrEmailTaken)
+	})
 }
 
 func TestUserService_Login(t *testing.T) {
@@ -162,5 +173,78 @@ func TestUserService_Delete(t *testing.T) {
 		err := svc.Delete("id-inexistente")
 		require.Error(t, err)
 		assert.Equal(t, "usuário não encontrado", err.Error())
+	})
+}
+
+func TestUserService_LoginLockout(t *testing.T) {
+	hash, _ := bcrypt.GenerateFromPassword([]byte("senha-correta"), bcrypt.MinCost)
+	newRepo := func() *mocks.UserRepoMock {
+		return &mocks.UserRepoMock{
+			FindByEmailFn: func(email string) (*model.User, error) {
+				return &model.User{ID: "abc", Email: email, Password: string(hash)}, nil
+			},
+		}
+	}
+	fail := func(svc *service.UserService, email string) error {
+		_, err := svc.Login(service.LoginInput{Email: email, Password: "senha-errada"})
+		return err
+	}
+
+	t.Run("bloqueia o e-mail depois de várias senhas erradas, mesmo com a senha certa", func(t *testing.T) {
+		svc := service.NewUserService(newRepo(), testSecret)
+		for range service.MaxLoginFailures {
+			assert.ErrorIs(t, fail(svc, "victor@email.com"), service.ErrInvalidCredentials)
+		}
+
+		_, err := svc.Login(service.LoginInput{Email: "victor@email.com", Password: "senha-correta"})
+
+		assert.ErrorIs(t, err, service.ErrTooManyAttempts)
+	})
+
+	t.Run("maiúsculas e espaços no e-mail não burlam o bloqueio", func(t *testing.T) {
+		svc := service.NewUserService(newRepo(), testSecret)
+		for i := range service.MaxLoginFailures {
+			if i%2 == 0 {
+				_ = fail(svc, " Victor@Email.com ")
+			} else {
+				_ = fail(svc, "victor@email.com")
+			}
+		}
+
+		assert.ErrorIs(t, fail(svc, "VICTOR@EMAIL.COM"), service.ErrTooManyAttempts)
+	})
+
+	t.Run("e-mail inexistente também conta tentativa", func(t *testing.T) {
+		repo := &mocks.UserRepoMock{
+			FindByEmailFn: func(string) (*model.User, error) { return nil, gorm.ErrRecordNotFound },
+		}
+		svc := service.NewUserService(repo, testSecret)
+		for range service.MaxLoginFailures {
+			_ = fail(svc, "naoexiste@email.com")
+		}
+
+		assert.ErrorIs(t, fail(svc, "naoexiste@email.com"), service.ErrTooManyAttempts)
+	})
+
+	t.Run("login certo zera as tentativas", func(t *testing.T) {
+		svc := service.NewUserService(newRepo(), testSecret)
+		for range service.MaxLoginFailures - 1 {
+			_ = fail(svc, "victor@email.com")
+		}
+		_, err := svc.Login(service.LoginInput{Email: "victor@email.com", Password: "senha-correta"})
+		require.NoError(t, err)
+
+		assert.ErrorIs(t, fail(svc, "victor@email.com"), service.ErrInvalidCredentials)
+	})
+
+	t.Run("bloqueio de um e-mail não afeta outro", func(t *testing.T) {
+		svc := service.NewUserService(newRepo(), testSecret)
+		for range service.MaxLoginFailures {
+			_ = fail(svc, "victor@email.com")
+		}
+
+		_, err := svc.Login(service.LoginInput{Email: "outra@email.com", Password: "senha-correta"})
+
+		require.NoError(t, err)
 	})
 }

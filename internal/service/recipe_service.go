@@ -148,7 +148,7 @@ func (s *RecipeService) GetByID(id string) (*RecipeResponse, error) {
 	recipe, err := s.repo.FindByID(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("receita não encontrada")
+			return nil, ErrRecipeNotFound
 		}
 		return nil, err
 	}
@@ -160,13 +160,13 @@ func (s *RecipeService) Update(recipeID, userID string, input UpdateRecipeInput)
 	recipe, err := s.repo.FindByID(recipeID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("receita não encontrada")
+			return nil, ErrRecipeNotFound
 		}
 		return nil, err
 	}
 
 	if recipe.UserID != userID {
-		return nil, errors.New("sem permissão para editar esta receita")
+		return nil, ErrForbiddenEditRecipe
 	}
 
 	if input.Name != "" {
@@ -196,13 +196,13 @@ func (s *RecipeService) Delete(recipeID, userID string) error {
 	recipe, err := s.repo.FindByID(recipeID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("receita não encontrada")
+			return ErrRecipeNotFound
 		}
 		return err
 	}
 
 	if recipe.UserID != userID {
-		return errors.New("sem permissão para deletar esta receita")
+		return ErrForbiddenDelRecipe
 	}
 
 	return s.repo.Delete(recipeID)
@@ -214,13 +214,13 @@ func (s *RecipeService) AddImage(recipeID, userID string, input ImageRecipeInput
 	recipe, err := s.repo.FindByID(recipeID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("receita não encontrada")
+			return nil, ErrRecipeNotFound
 		}
 		return nil, err
 	}
 
 	if recipe.UserID != userID {
-		return nil, errors.New("sem permissão")
+		return nil, ErrForbidden
 	}
 
 	image := &model.ImageRecipe{URL: input.URL, RecipeID: recipeID}
@@ -235,21 +235,25 @@ func (s *RecipeService) UpdateImage(recipeID, userID string, imageID uint, input
 	recipe, err := s.repo.FindByID(recipeID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("receita não encontrada")
+			return nil, ErrRecipeNotFound
 		}
 		return nil, err
 	}
 
 	if recipe.UserID != userID {
-		return nil, errors.New("sem permissão")
+		return nil, ErrForbidden
 	}
 
 	image, err := s.repo.FindImageByID(imageID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("imagem não encontrada")
+			return nil, ErrImageNotFound
 		}
 		return nil, err
+	}
+	// a imagem precisa ser desta receita, senão o dono de uma receita mexeria em outra
+	if image.RecipeID != recipe.ID {
+		return nil, ErrImageNotFound
 	}
 
 	image.URL = input.URL
@@ -264,20 +268,24 @@ func (s *RecipeService) DeleteImage(recipeID, userID string, imageID uint) error
 	recipe, err := s.repo.FindByID(recipeID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("receita não encontrada")
+			return ErrRecipeNotFound
 		}
 		return err
 	}
 
 	if recipe.UserID != userID {
-		return errors.New("sem permissão")
+		return ErrForbidden
 	}
 
-	if _, err := s.repo.FindImageByID(imageID); err != nil {
+	image, err := s.repo.FindImageByID(imageID)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("imagem não encontrada")
+			return ErrImageNotFound
 		}
 		return err
+	}
+	if image.RecipeID != recipe.ID {
+		return ErrImageNotFound
 	}
 
 	return s.repo.DeleteImage(imageID)
@@ -289,13 +297,13 @@ func (s *RecipeService) AddIngredient(recipeID, userID string, input IngredientR
 	recipe, err := s.repo.FindByID(recipeID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("receita não encontrada")
+			return nil, ErrRecipeNotFound
 		}
 		return nil, err
 	}
 
 	if recipe.UserID != userID {
-		return nil, errors.New("sem permissão")
+		return nil, ErrForbidden
 	}
 
 	ingredient, err := s.repo.FindOrCreateIngredient(normalizeIngredient(input.Name))
@@ -319,20 +327,24 @@ func (s *RecipeService) DeleteIngredient(recipeID, userID string, ingredientReci
 	recipe, err := s.repo.FindByID(recipeID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("receita não encontrada")
+			return ErrRecipeNotFound
 		}
 		return err
 	}
 
 	if recipe.UserID != userID {
-		return errors.New("sem permissão")
+		return ErrForbidden
 	}
 
-	if _, err := s.repo.FindIngredientRecipeByID(ingredientRecipeID); err != nil {
+	ir, err := s.repo.FindIngredientRecipeByID(ingredientRecipeID)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("ingrediente não encontrado nesta receita")
+			return ErrIngredientNotFound
 		}
 		return err
+	}
+	if ir.RecipeID != recipe.ID {
+		return ErrIngredientNotFound
 	}
 
 	return s.repo.DeleteIngredientRecipe(ingredientRecipeID)
@@ -344,13 +356,13 @@ func (s *RecipeService) AddPreparation(recipeID, userID string, input Preparatio
 	recipe, err := s.repo.FindByID(recipeID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("receita não encontrada")
+			return nil, ErrRecipeNotFound
 		}
 		return nil, err
 	}
 
 	if recipe.UserID != userID {
-		return nil, errors.New("sem permissão")
+		return nil, ErrForbidden
 	}
 
 	p := &model.Preparation{Description: input.Description, RecipeID: recipeID}
@@ -365,21 +377,24 @@ func (s *RecipeService) UpdatePreparation(recipeID, userID string, prepID uint, 
 	recipe, err := s.repo.FindByID(recipeID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("receita não encontrada")
+			return nil, ErrRecipeNotFound
 		}
 		return nil, err
 	}
 
 	if recipe.UserID != userID {
-		return nil, errors.New("sem permissão")
+		return nil, ErrForbidden
 	}
 
 	p, err := s.repo.FindPreparationByID(prepID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("passo de preparo não encontrado")
+			return nil, ErrPreparationNotFound
 		}
 		return nil, err
+	}
+	if p.RecipeID != recipe.ID {
+		return nil, ErrPreparationNotFound
 	}
 
 	p.Description = input.Description
@@ -394,20 +409,24 @@ func (s *RecipeService) DeletePreparation(recipeID, userID string, prepID uint) 
 	recipe, err := s.repo.FindByID(recipeID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("receita não encontrada")
+			return ErrRecipeNotFound
 		}
 		return err
 	}
 
 	if recipe.UserID != userID {
-		return errors.New("sem permissão")
+		return ErrForbidden
 	}
 
-	if _, err := s.repo.FindPreparationByID(prepID); err != nil {
+	p, err := s.repo.FindPreparationByID(prepID)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("passo de preparo não encontrado")
+			return ErrPreparationNotFound
 		}
 		return err
+	}
+	if p.RecipeID != recipe.ID {
+		return ErrPreparationNotFound
 	}
 
 	return s.repo.DeletePreparation(prepID)

@@ -16,8 +16,10 @@ func NewAuthHandler(service *service.UserService) *AuthHandler {
 	return &AuthHandler{service: service}
 }
 
-func (h *AuthHandler) RegisterRoutes(r *gin.RouterGroup) {
-	r.POST("", h.login)
+// RegisterRoutes registra o login. Os middlewares recebidos (ex.: limite por IP)
+// rodam antes dele.
+func (h *AuthHandler) RegisterRoutes(r *gin.RouterGroup, middlewares ...gin.HandlerFunc) {
+	r.POST("", append(middlewares, h.login)...)
 }
 
 func (h *AuthHandler) login(c *gin.Context) {
@@ -29,7 +31,7 @@ func (h *AuthHandler) login(c *gin.Context) {
 
 	resp, err := h.service.Login(input)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 

@@ -42,7 +42,7 @@ func (s *CommentService) Create(userID string, input CreateCommentInput) (*Comme
 	// garante que a receita existe antes de comentar
 	if _, err := s.recipeRepo.FindByID(input.RecipeID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("receita não encontrada")
+			return nil, ErrRecipeNotFound
 		}
 		return nil, err
 	}
@@ -83,13 +83,13 @@ func (s *CommentService) Update(commentID uint, userID string, input UpdateComme
 	comment, err := s.repo.FindByID(commentID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("comentário não encontrado")
+			return nil, ErrCommentNotFound
 		}
 		return nil, err
 	}
 
 	if comment.UserID != userID {
-		return nil, errors.New("sem permissão para editar este comentário")
+		return nil, ErrForbiddenEditComment
 	}
 
 	comment.Description = input.Description
@@ -109,14 +109,14 @@ func (s *CommentService) Delete(commentID uint, userID string, isAdm bool) error
 	comment, err := s.repo.FindByID(commentID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("comentário não encontrado")
+			return ErrCommentNotFound
 		}
 		return err
 	}
 
 	// admin pode deletar qualquer comentário, usuário só o próprio
 	if !isAdm && comment.UserID != userID {
-		return errors.New("sem permissão para deletar este comentário")
+		return ErrForbiddenDelComment
 	}
 
 	return s.repo.Delete(commentID)

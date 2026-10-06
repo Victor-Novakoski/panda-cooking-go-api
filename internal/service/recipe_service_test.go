@@ -252,3 +252,103 @@ func TestRecipeService_Ingredient_ErrorPropagation(t *testing.T) {
 		assert.Equal(t, "db error", err.Error())
 	})
 }
+
+// Itens (foto, ingrediente, passo) de outra receita não podem ser alterados
+// pela rota da receita do usuário: o service responde "não encontrado" e
+// nunca chega a gravar.
+func TestRecipeService_ItemOfAnotherRecipe(t *testing.T) {
+	const otherRecipe = "outra-receita"
+
+	newRepo := func(t *testing.T) *mocks.RecipeRepoMock {
+		r := baseRecipe()
+		fail := func(string) { t.Fatal("não deveria alterar item de outra receita") }
+		return &mocks.RecipeRepoMock{
+			FindByIDFn: func(id string) (*model.Recipe, error) { return &r, nil },
+			FindImageByIDFn: func(id uint) (*model.ImageRecipe, error) {
+				return &model.ImageRecipe{ID: id, URL: "https://x.com/a.png", RecipeID: otherRecipe}, nil
+			},
+			FindIngredientRecipeByIDFn: func(id uint) (*model.IngredientRecipe, error) {
+				return &model.IngredientRecipe{ID: id, RecipeID: otherRecipe}, nil
+			},
+			FindPreparationByIDFn: func(id uint) (*model.Preparation, error) {
+				return &model.Preparation{ID: id, RecipeID: otherRecipe}, nil
+			},
+			UpdateImageFn:            func(*model.ImageRecipe) error { fail("UpdateImage"); return nil },
+			DeleteImageFn:            func(uint) error { fail("DeleteImage"); return nil },
+			DeleteIngredientRecipeFn: func(uint) error { fail("DeleteIngredientRecipe"); return nil },
+			UpdatePreparationFn:      func(*model.Preparation) error { fail("UpdatePreparation"); return nil },
+			DeletePreparationFn:      func(uint) error { fail("DeletePreparation"); return nil },
+		}
+	}
+
+	tests := []struct {
+		name string
+		call func(svc *service.RecipeService) error
+		want error
+	}{
+		{"editar foto", func(svc *service.RecipeService) error {
+			_, err := svc.UpdateImage("recipe-uuid", "user-uuid", 7, service.ImageRecipeInput{URL: "https://x.com/b.png"})
+			return err
+		}, service.ErrImageNotFound},
+		{"apagar foto", func(svc *service.RecipeService) error {
+			return svc.DeleteImage("recipe-uuid", "user-uuid", 7)
+		}, service.ErrImageNotFound},
+		{"apagar ingrediente", func(svc *service.RecipeService) error {
+			return svc.DeleteIngredient("recipe-uuid", "user-uuid", 7)
+		}, service.ErrIngredientNotFound},
+		{"editar passo", func(svc *service.RecipeService) error {
+			_, err := svc.UpdatePreparation("recipe-uuid", "user-uuid", 7, service.PreparationInput{Description: "x"})
+			return err
+		}, service.ErrPreparationNotFound},
+		{"apagar passo", func(svc *service.RecipeService) error {
+			return svc.DeletePreparation("recipe-uuid", "user-uuid", 7)
+		}, service.ErrPreparationNotFound},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := service.NewRecipeService(newRepo(t))
+
+			err := tt.call(svc)
+
+			assert.ErrorIs(t, err, tt.want)
+		})
+	}
+}
+
+func TestRecipeService_ItemOfSameRecipe(t *testing.T) {
+	t.Run("dono apaga a foto da própria receita", func(t *testing.T) {
+		r := baseRecipe()
+		var deleted uint
+		repo := &mocks.RecipeRepoMock{
+			FindByIDFn: func(id string) (*model.Recipe, error) { return &r, nil },
+			FindImageByIDFn: func(id uint) (*model.ImageRecipe, error) {
+				return &model.ImageRecipe{ID: id, RecipeID: "recipe-uuid"}, nil
+			},
+			DeleteImageFn: func(id uint) error { deleted = id; return nil },
+		}
+		svc := service.NewRecipeService(repo)
+
+		err := svc.DeleteImage("recipe-uuid", "user-uuid", 7)
+
+		require.NoError(t, err)
+		assert.Equal(t, uint(7), deleted)
+	})
+
+	t.Run("dono edita o passo da própria receita", func(t *testing.T) {
+		r := baseRecipe()
+		repo := &mocks.RecipeRepoMock{
+			FindByIDFn: func(id string) (*model.Recipe, error) { return &r, nil },
+			FindPreparationByIDFn: func(id uint) (*model.Preparation, error) {
+				return &model.Preparation{ID: id, RecipeID: "recipe-uuid"}, nil
+			},
+			UpdatePreparationFn: func(*model.Preparation) error { return nil },
+		}
+		svc := service.NewRecipeService(repo)
+
+		resp, err := svc.UpdatePreparation("recipe-uuid", "user-uuid", 7, service.PreparationInput{Description: "Misture tudo"})
+
+		require.NoError(t, err)
+		assert.Equal(t, "Misture tudo", resp.Description)
+	})
+}

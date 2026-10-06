@@ -2,8 +2,11 @@ package service
 
 import (
 	"errors"
+	"strings"
+	"time"
 
 	"panda-cooking-go-api/internal/model"
+	"panda-cooking-go-api/internal/ratelimit"
 	"panda-cooking-go-api/internal/repository"
 	"panda-cooking-go-api/pkg/token"
 
@@ -11,13 +14,25 @@ import (
 	"gorm.io/gorm"
 )
 
+// Depois de MaxLoginFailures senhas erradas para o mesmo e-mail, o login
+// dele fica bloqueado até a janela de LoginLockout acabar.
+const (
+	MaxLoginFailures = 5
+	LoginLockout     = 15 * time.Minute
+)
+
 type UserService struct {
-	repo      repository.UserRepo
-	secretKey string
+	repo          repository.UserRepo
+	secretKey     string
+	loginFailures *ratelimit.Limiter
 }
 
 func NewUserService(repo repository.UserRepo, secretKey string) *UserService {
-	return &UserService{repo: repo, secretKey: secretKey}
+	return &UserService{
+		repo:          repo,
+		secretKey:     secretKey,
+		loginFailures: ratelimit.New(MaxLoginFailures, LoginLockout),
+	}
 }
 
 // --- DTOs ---
@@ -67,6 +82,9 @@ func (s *UserService) Create(input CreateUserInput) (*UserResponse, error) {
 	}
 
 	if err := s.repo.Create(user); err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return nil, ErrEmailTaken
+		}
 		return nil, err
 	}
 
@@ -74,17 +92,25 @@ func (s *UserService) Create(input CreateUserInput) (*UserResponse, error) {
 }
 
 func (s *UserService) Login(input LoginInput) (*LoginResponse, error) {
+	key := strings.ToLower(strings.TrimSpace(input.Email))
+	if blocked, _ := s.loginFailures.Blocked(key); blocked {
+		return nil, ErrTooManyAttempts
+	}
+
 	user, err := s.repo.FindByEmail(input.Email)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("email ou senha inválidos")
+			s.loginFailures.Allow(key)
+			return nil, ErrInvalidCredentials
 		}
 		return nil, err
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
-		return nil, errors.New("email ou senha inválidos")
+		s.loginFailures.Allow(key)
+		return nil, ErrInvalidCredentials
 	}
+	s.loginFailures.Reset(key)
 
 	t, err := token.Generate(user.ID, user.IsAdm, s.secretKey)
 	if err != nil {
@@ -98,7 +124,7 @@ func (s *UserService) GetProfile(userID string) (*UserResponse, error) {
 	user, err := s.repo.FindByID(userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("usuário não encontrado")
+			return nil, ErrUserNotFound
 		}
 		return nil, err
 	}
@@ -109,7 +135,7 @@ func (s *UserService) Update(userID string, input UpdateUserInput) (*UserRespons
 	user, err := s.repo.FindByID(userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("usuário não encontrado")
+			return nil, ErrUserNotFound
 		}
 		return nil, err
 	}
@@ -132,7 +158,7 @@ func (s *UserService) Delete(userID string) error {
 	_, err := s.repo.FindByID(userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("usuário não encontrado")
+			return ErrUserNotFound
 		}
 		return err
 	}

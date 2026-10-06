@@ -15,6 +15,9 @@ func NewFavoriteRepository(db *gorm.DB) *FavoriteRepository {
 }
 
 func (r *FavoriteRepository) Find(userID, recipeID string) (*model.FavoriteRecipe, error) {
+	if !isUUID(recipeID) {
+		return nil, gorm.ErrRecordNotFound
+	}
 	var fav model.FavoriteRecipe
 	err := r.db.Where("user_id = ? AND recipe_id = ?", userID, recipeID).First(&fav).Error
 	if err != nil {

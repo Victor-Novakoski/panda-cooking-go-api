@@ -1,26 +1,38 @@
 package handler
 
-import "net/http"
+import (
+	"errors"
+	"log"
+	"net/http"
 
-// statusFromErr mapeia mensagens de erro conhecidas para status HTTP.
-func statusFromErr(err error) int {
-	switch err.Error() {
-	case "receita não encontrada",
-		"imagem não encontrada",
-		"ingrediente não encontrado nesta receita",
-		"passo de preparo não encontrado",
-		"comentário não encontrado",
-		"receita não está nos favoritos":
-		return http.StatusNotFound
-	case "sem permissão",
-		"sem permissão para editar esta receita",
-		"sem permissão para deletar esta receita",
-		"sem permissão para editar este comentário",
-		"sem permissão para deletar este comentário":
-		return http.StatusForbidden
-	case "receita já está nos favoritos":
-		return http.StatusConflict
-	default:
-		return http.StatusInternalServerError
+	"panda-cooking-go-api/internal/service"
+
+	"github.com/gin-gonic/gin"
+)
+
+// msgInternal é o que o cliente vê em qualquer erro inesperado.
+// O detalhe fica só no log, para não expor banco, SQL ou caminhos internos.
+const msgInternal = "erro interno, tente novamente mais tarde"
+
+var statusByKind = map[service.Kind]int{
+	service.KindNotFound:        http.StatusNotFound,
+	service.KindForbidden:       http.StatusForbidden,
+	service.KindConflict:        http.StatusConflict,
+	service.KindUnauthorized:    http.StatusUnauthorized,
+	service.KindTooManyRequests: http.StatusTooManyRequests,
+}
+
+// respondError responde um erro do service: erro conhecido sai com o status e
+// a mensagem dele; o resto vira 500 com mensagem genérica.
+func respondError(c *gin.Context, err error) {
+	var appErr *service.Error
+	if errors.As(err, &appErr) {
+		if status, ok := statusByKind[appErr.Kind]; ok {
+			c.JSON(status, gin.H{"error": appErr.Message})
+			return
+		}
 	}
+
+	log.Printf("erro interno em %s %s: %v", c.Request.Method, c.FullPath(), err)
+	c.JSON(http.StatusInternalServerError, gin.H{"error": msgInternal})
 }

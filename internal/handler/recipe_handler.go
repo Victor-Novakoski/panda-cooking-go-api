@@ -40,7 +40,7 @@ func (h *RecipeHandler) RegisterRoutes(r *gin.RouterGroup, authMiddleware gin.Ha
 func (h *RecipeHandler) getAll(c *gin.Context) {
 	recipes, err := h.service.GetAll()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, recipes)
@@ -49,7 +49,7 @@ func (h *RecipeHandler) getAll(c *gin.Context) {
 func (h *RecipeHandler) getByID(c *gin.Context) {
 	recipe, err := h.service.GetByID(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, recipe)
@@ -65,7 +65,7 @@ func (h *RecipeHandler) create(c *gin.Context) {
 	userID := c.GetString(middleware.UserIDKey)
 	recipe, err := h.service.Create(userID, input)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 
@@ -82,13 +82,7 @@ func (h *RecipeHandler) update(c *gin.Context) {
 	userID := c.GetString(middleware.UserIDKey)
 	recipe, err := h.service.Update(c.Param("id"), userID, input)
 	if err != nil {
-		status := http.StatusInternalServerError
-		if err.Error() == "sem permissão para editar esta receita" {
-			status = http.StatusForbidden
-		} else if err.Error() == "receita não encontrada" {
-			status = http.StatusNotFound
-		}
-		c.JSON(status, gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 
@@ -98,13 +92,7 @@ func (h *RecipeHandler) update(c *gin.Context) {
 func (h *RecipeHandler) delete(c *gin.Context) {
 	userID := c.GetString(middleware.UserIDKey)
 	if err := h.service.Delete(c.Param("id"), userID); err != nil {
-		status := http.StatusInternalServerError
-		if err.Error() == "sem permissão para deletar esta receita" {
-			status = http.StatusForbidden
-		} else if err.Error() == "receita não encontrada" {
-			status = http.StatusNotFound
-		}
-		c.JSON(status, gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -122,7 +110,7 @@ func (h *RecipeHandler) addImage(c *gin.Context) {
 	userID := c.GetString(middleware.UserIDKey)
 	img, err := h.service.AddImage(c.Param("id"), userID, input)
 	if err != nil {
-		c.JSON(statusFromErr(err), gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 
@@ -145,7 +133,7 @@ func (h *RecipeHandler) updateImage(c *gin.Context) {
 	userID := c.GetString(middleware.UserIDKey)
 	img, err := h.service.UpdateImage(c.Param("id"), userID, imageID, input)
 	if err != nil {
-		c.JSON(statusFromErr(err), gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 
@@ -161,7 +149,7 @@ func (h *RecipeHandler) deleteImage(c *gin.Context) {
 
 	userID := c.GetString(middleware.UserIDKey)
 	if err := h.service.DeleteImage(c.Param("id"), userID, imageID); err != nil {
-		c.JSON(statusFromErr(err), gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 
@@ -180,7 +168,7 @@ func (h *RecipeHandler) addIngredient(c *gin.Context) {
 	userID := c.GetString(middleware.UserIDKey)
 	ir, err := h.service.AddIngredient(c.Param("id"), userID, input)
 	if err != nil {
-		c.JSON(statusFromErr(err), gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 
@@ -196,7 +184,7 @@ func (h *RecipeHandler) deleteIngredient(c *gin.Context) {
 
 	userID := c.GetString(middleware.UserIDKey)
 	if err := h.service.DeleteIngredient(c.Param("id"), userID, ingredientID); err != nil {
-		c.JSON(statusFromErr(err), gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 
@@ -215,7 +203,7 @@ func (h *RecipeHandler) addPreparation(c *gin.Context) {
 	userID := c.GetString(middleware.UserIDKey)
 	p, err := h.service.AddPreparation(c.Param("id"), userID, input)
 	if err != nil {
-		c.JSON(statusFromErr(err), gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 
@@ -238,7 +226,7 @@ func (h *RecipeHandler) updatePreparation(c *gin.Context) {
 	userID := c.GetString(middleware.UserIDKey)
 	p, err := h.service.UpdatePreparation(c.Param("id"), userID, prepID, input)
 	if err != nil {
-		c.JSON(statusFromErr(err), gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 
@@ -254,7 +242,7 @@ func (h *RecipeHandler) deletePreparation(c *gin.Context) {
 
 	userID := c.GetString(middleware.UserIDKey)
 	if err := h.service.DeletePreparation(c.Param("id"), userID, prepID); err != nil {
-		c.JSON(statusFromErr(err), gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 

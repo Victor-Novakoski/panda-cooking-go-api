@@ -2,11 +2,13 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"panda-cooking-go-api/internal/config"
 	"panda-cooking-go-api/internal/database"
 	"panda-cooking-go-api/internal/handler"
 	"panda-cooking-go-api/internal/middleware"
+	"panda-cooking-go-api/internal/ratelimit"
 	"panda-cooking-go-api/internal/repository"
 	"panda-cooking-go-api/internal/service"
 
@@ -20,7 +22,13 @@ func main() {
 		log.Println("arquivo .env não encontrado, usando variáveis de ambiente do sistema")
 	}
 
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("configuração inválida: %v", err)
+	}
+	if cfg.IsProduction() {
+		gin.SetMode(gin.ReleaseMode)
+	}
 
 	db, err := database.Connect(cfg.DB)
 	if err != nil {
@@ -55,6 +63,13 @@ func main() {
 
 	r := gin.Default()
 
+	// Sem proxy confiável, o IP do cliente é o da conexão: assim ninguém burla
+	// o limite por IP mandando um X-Forwarded-For falso. No deploy atrás de
+	// proxy reverso, o IP dele entra aqui.
+	if err := r.SetTrustedProxies(nil); err != nil {
+		log.Fatalf("erro ao configurar proxies: %v", err)
+	}
+
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:3001"},
 		AllowMethods:     []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
@@ -66,7 +81,9 @@ func main() {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
 
-	authHandler.RegisterRoutes(r.Group("/auth"))
+	// 10 tentativas de login por minuto por IP; o bloqueio por e-mail fica no UserService
+	loginLimiter := ratelimit.New(10, time.Minute)
+	authHandler.RegisterRoutes(r.Group("/auth"), middleware.RateLimitByIP(loginLimiter))
 	userHandler.RegisterRoutes(r.Group("/users"), authMiddleware)
 	recipeHandler.RegisterRoutes(r.Group("/recipes"), authMiddleware)
 	categoryHandler.RegisterRoutes(r.Group("/categories"))

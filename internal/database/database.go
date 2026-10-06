@@ -9,7 +9,10 @@ import (
 )
 
 func Connect(cfg config.DBConfig) (*gorm.DB, error) {
-	db, err := gorm.Open(postgres.Open(cfg.DSN()), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(cfg.DSN()), &gorm.Config{
+		// converte erros do Postgres (ex.: chave duplicada) nos erros do GORM
+		TranslateError: true,
+	})
 	if err != nil {
 		return nil, err
 	}
