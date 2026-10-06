@@ -10,3 +10,4 @@ Decisões e o porquê delas. Decisão nova entra aqui ([RULES.md](RULES.md#7-doc
 - **`misspell` fora do lint:** ele só conhece inglês e acusava os comentários em português.
 - **Imagem distroless `nonroot`:** sem shell e sem root, menos superfície de ataque e o Trivy fica limpo.
 - **Repositório público:** nada de código, nome de cliente ou padrão interno de outra empresa entra aqui.
+- **Dependências atualizadas no setup:** pgx 5.6 tinha falha crítica (e risco de SQL injection) e x/crypto, x/net e x/text tinham falhas altas; o govulncheck e o Trivy barraram na primeira CI.
