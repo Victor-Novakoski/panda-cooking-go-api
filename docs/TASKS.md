@@ -1,0 +1,49 @@
+# Tarefas
+
+Backlog em ordem. Só se trabalha na etapa atual; o que surgir no caminho entra aqui antes de ser feito ([RULES.md](RULES.md#1-escopo)). Os números `#N` apontam para os itens de [SECURITY.md](SECURITY.md).
+
+**Etapa atual: 1 — Setup do repositório**
+
+## Etapa 0 — Base da API ✅
+
+- [x] Gin + GORM + Postgres, camadas handler → service → repository
+- [x] Cadastro, login JWT e perfil
+- [x] Receitas com fotos, ingredientes e modo de preparo
+- [x] Categorias, comentários e favoritos
+- [x] Seed com receitas de exemplo
+- [x] Testes de service (mocks) e de handler
+
+## Etapa 1 — Setup do repositório
+
+- [x] Docs em `docs/` (PRD, arquitetura, regras, convenções, tarefas, memória, segurança)
+- [x] CI: lint, testes com race, imagem Docker + Trivy, govulncheck, gitleaks, título do PR
+- [x] Dependabot para Go, Actions e Docker
+- [x] golangci-lint configurado e código ajustado
+- [x] Dockerfile multi-stage rodando sem root (distroless)
+- [ ] Branch `develop`, proteção da `main` e da `develop` com os checks obrigatórios (feito pelo victor no GitHub)
+
+## Etapa 2 — Segurança da base
+
+- [ ] Item da receita (foto, passo, ingrediente) só pode ser alterado pela receita a que pertence, com teste (#6)
+- [ ] Erros tipados no service; 500 com mensagem genérica e detalhe no log; e-mail duplicado vira 409 (#12)
+- [ ] `SECRET_KEY` obrigatória com 32+ caracteres; produção recusa a de exemplo (#1)
+- [ ] Tamanho máximo nos textos, trim, e-mail minúsculo, limite do corpo (#3)
+- [ ] Senha: mínimo 10, máximo 72 bytes, recusa de senhas comuns; tempo constante no login (#5)
+- [ ] Rate limit global e no login, bloqueio progressivo por e-mail (#8, #15)
+- [ ] `http.Server` com timeouts (#20)
+- [ ] CORS por `CORS_ORIGINS` (#17) e middleware de headers de segurança (#19)
+- [ ] Postgres do compose só em `127.0.0.1` (#21)
+- [ ] Logar falha de login, 401, 403 e 429 (#22)
+
+## Etapa 3 — API completa
+
+- [ ] Paginação em receitas e comentários (#20)
+- [ ] Busca por nome e filtro por categoria na API
+- [ ] Comentários por receita (`GET /recipes/:id/comments`)
+- [ ] Migrations versionadas no lugar do `AutoMigrate` (a discutir)
+- [ ] Testes de integração com Postgres real (a discutir)
+- [ ] Documentação OpenAPI (a discutir)
+
+## Etapa 4 — Deploy
+
+- [ ] Publicar junto com o Rastreia, sem custo
