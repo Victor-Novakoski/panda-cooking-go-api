@@ -23,6 +23,7 @@ func (h *RecipeHandler) RegisterRoutes(r *gin.RouterGroup, authMiddleware gin.Ha
 	r.GET("/:id", h.getByID)
 	r.POST("", authMiddleware, h.create)
 	r.PATCH("/:id", authMiddleware, h.update)
+	r.PUT("/:id", authMiddleware, h.replace)
 	r.DELETE("/:id", authMiddleware, h.delete)
 
 	r.POST("/:id/images", authMiddleware, h.addImage)
@@ -81,6 +82,23 @@ func (h *RecipeHandler) update(c *gin.Context) {
 
 	userID := c.GetString(middleware.UserIDKey)
 	recipe, err := h.service.Update(c.Param("id"), userID, input)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, recipe)
+}
+
+func (h *RecipeHandler) replace(c *gin.Context) {
+	var input service.ReplaceRecipeInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID := c.GetString(middleware.UserIDKey)
+	recipe, err := h.service.Replace(c.Param("id"), userID, input)
 	if err != nil {
 		respondError(c, err)
 		return

@@ -16,6 +16,7 @@ type RecipeRepo interface {
 	FindAll() ([]model.Recipe, error)
 	FindByID(id string) (*model.Recipe, error)
 	Update(recipe *model.Recipe) error
+	Replace(recipe *model.Recipe) error
 	Delete(id string) error
 	FindOrCreateIngredient(name string) (*model.Ingredient, error)
 	AddIngredient(ir *model.IngredientRecipe) error
@@ -38,6 +39,7 @@ type CategoryRepo interface {
 type CommentRepo interface {
 	Create(comment *model.Comment) error
 	FindAll() ([]model.Comment, error)
+	FindByRecipe(recipeID string) ([]model.Comment, error)
 	FindByID(id uint) (*model.Comment, error)
 	Update(comment *model.Comment) error
 	Delete(id uint) error

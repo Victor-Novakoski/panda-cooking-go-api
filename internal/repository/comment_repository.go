@@ -4,6 +4,7 @@ import (
 	"panda-cooking-go-api/internal/model"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type CommentRepository struct {
@@ -24,9 +25,19 @@ func (r *CommentRepository) FindAll() ([]model.Comment, error) {
 	return comments, err
 }
 
+// FindByRecipe lista os comentários da receita, do mais antigo ao mais novo.
+func (r *CommentRepository) FindByRecipe(recipeID string) ([]model.Comment, error) {
+	var comments []model.Comment
+	err := r.db.Preload("User").
+		Where("recipe_id = ?", recipeID).
+		Order("created_at, id").
+		Find(&comments).Error
+	return comments, err
+}
+
 func (r *CommentRepository) FindByID(id uint) (*model.Comment, error) {
 	var comment model.Comment
-	err := r.db.First(&comment, id).Error
+	err := r.db.Preload("User").First(&comment, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +45,7 @@ func (r *CommentRepository) FindByID(id uint) (*model.Comment, error) {
 }
 
 func (r *CommentRepository) Update(comment *model.Comment) error {
-	return r.db.Save(comment).Error
+	return r.db.Omit(clause.Associations).Save(comment).Error
 }
 
 func (r *CommentRepository) Delete(id uint) error {

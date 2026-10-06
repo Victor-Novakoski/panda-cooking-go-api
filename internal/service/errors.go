@@ -10,6 +10,7 @@ const (
 	KindConflict
 	KindUnauthorized
 	KindTooManyRequests
+	KindInvalid
 )
 
 // Error é um erro esperado da regra de negócio. A mensagem pode ir para o
@@ -40,6 +41,9 @@ var (
 
 	ErrAlreadyFavorite = newError(KindConflict, "receita já está nos favoritos")
 	ErrEmailTaken      = newError(KindConflict, "e-mail já cadastrado")
+
+	ErrEmptyName        = newError(KindInvalid, "o nome não pode ficar vazio")
+	ErrCategoryNotFound = newError(KindInvalid, "categoria não encontrada")
 
 	ErrInvalidCredentials = newError(KindUnauthorized, "email ou senha inválidos")
 	ErrTooManyAttempts    = newError(KindTooManyRequests, "muitas tentativas de login, tente novamente mais tarde")

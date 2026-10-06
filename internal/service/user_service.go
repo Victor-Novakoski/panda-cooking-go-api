@@ -44,9 +44,11 @@ type CreateUserInput struct {
 	ImageProfile string `json:"image_profile"`
 }
 
+// UpdateUserInput usa ponteiro para separar "não mandou" (nil, fica como
+// está) de "mandou vazio": foto vazia remove a foto; nome vazio é recusado.
 type UpdateUserInput struct {
-	Name         string `json:"name"`
-	ImageProfile string `json:"image_profile"`
+	Name         *string `json:"name" binding:"omitempty,min=1"`
+	ImageProfile *string `json:"image_profile" binding:"omitempty,len=0|url"`
 }
 
 type UserResponse struct {
@@ -140,11 +142,15 @@ func (s *UserService) Update(userID string, input UpdateUserInput) (*UserRespons
 		return nil, err
 	}
 
-	if input.Name != "" {
-		user.Name = input.Name
+	if input.Name != nil {
+		name := strings.TrimSpace(*input.Name)
+		if name == "" {
+			return nil, ErrEmptyName
+		}
+		user.Name = name
 	}
-	if input.ImageProfile != "" {
-		user.ImageProfile = input.ImageProfile
+	if input.ImageProfile != nil {
+		user.ImageProfile = strings.TrimSpace(*input.ImageProfile)
 	}
 
 	if err := s.repo.Update(user); err != nil {

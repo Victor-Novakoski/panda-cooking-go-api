@@ -48,7 +48,10 @@ Backlog em ordem. Só se trabalha na etapa atual; o que surgir no caminho entra 
 
 - [ ] Paginação em receitas e comentários (#20)
 - [ ] Busca por nome e filtro por categoria na API
-- [ ] Comentários por receita (`GET /recipes/:id/comments`)
+- [x] Comentários por receita (`GET /recipes/:id/comments`), autor sem e-mail
+- [x] `PUT /recipes/:id` troca a receita inteira numa transação (tela de edição do front)
+- [x] `PATCH /recipes/:id` volta a trocar a categoria; categoria inexistente responde 400
+- [x] Perfil: foto vazia remove a foto, nome vazio é recusado
 - [ ] Migrations versionadas no lugar do `AutoMigrate` (a discutir)
 - [ ] Testes de integração com Postgres real (a discutir)
 - [ ] Documentação OpenAPI (a discutir)

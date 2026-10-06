@@ -82,7 +82,7 @@ func main() {
 
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:3001"},
-		AllowMethods:     []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		AllowCredentials: true,
 	}))
@@ -95,7 +95,9 @@ func main() {
 	loginLimiter := ratelimit.New(10, time.Minute)
 	authHandler.RegisterRoutes(r.Group("/auth"), middleware.RateLimitByIP(loginLimiter))
 	userHandler.RegisterRoutes(r.Group("/users"), authMiddleware)
-	recipeHandler.RegisterRoutes(r.Group("/recipes"), authMiddleware)
+	recipes := r.Group("/recipes")
+	recipeHandler.RegisterRoutes(recipes, authMiddleware)
+	commentHandler.RegisterRecipeRoutes(recipes)
 	categoryHandler.RegisterRoutes(r.Group("/categories"))
 	commentHandler.RegisterRoutes(r.Group("/comments"), authMiddleware)
 	favoriteHandler.RegisterRoutes(r.Group("/favorites"), authMiddleware)

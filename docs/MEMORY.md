@@ -31,3 +31,13 @@ Decisões e o porquê delas. Decisão nova entra aqui ([RULES.md](RULES.md#7-doc
 - **Portas só em `127.0.0.1` (#21):** banco com senha padrão não fica exposto na rede local.
 - **Polling no air e no Next:** no Docker do Windows e do Mac a pasta montada não avisa o container de arquivo alterado; sem polling o hot reload não funciona.
 - **`API_INTERNAL_URL` no front:** a página da receita é renderizada no servidor do Next, que dentro do Docker não alcança `localhost:8080`; ele usa `http://api:8080` e o navegador continua com a URL pública.
+
+## 2026-10 — Telas de edição
+
+- **`PUT /recipes/:id` com a receita inteira:** a tela de edição manda tudo de uma vez e a API troca dados, fotos, ingredientes e passos numa transação. Com as rotas por item o front teria que fazer várias chamadas, e uma falha no meio deixaria a receita pela metade. As rotas por item continuam para quem quiser mexer em uma parte só.
+- **Itens recriados, não comparados:** no `PUT` os itens antigos são apagados e os novos criados na ordem recebida. Comparar item a item não traz nada para quem usa a tela e complicaria o código; o custo é o id do item mudar, e nada guarda esse id.
+- **`Omit(clause.Associations)` no `Save`:** com a `Category` carregada pelo `Preload`, o `Save` do GORM gravava a associação e voltava o `category_id` para o antigo, e trocar a categoria no `PATCH` não tinha efeito.
+- **Ordem por id nos `Preload`:** sem `ORDER BY` o Postgres não garante a ordem dos passos do preparo.
+- **Comentário mostra só nome e foto do autor:** a lista de comentários é pública; antes a resposta trazia o e-mail e o `is_adm` de quem comentou.
+- **Ponteiro no `UpdateUserInput`:** com `string`, vazio e "não mandou" eram a mesma coisa e não havia como tirar a foto do perfil.
+- **`KindInvalid` (400) para erro de regra:** categoria inexistente era 500 (chave estrangeira violada); agora é 400 com a mensagem.

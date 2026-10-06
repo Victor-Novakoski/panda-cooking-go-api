@@ -4,6 +4,7 @@ import (
 	"panda-cooking-go-api/internal/model"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type RecipeRepository struct {
@@ -14,6 +15,10 @@ func NewRecipeRepository(db *gorm.DB) *RecipeRepository {
 	return &RecipeRepository{db: db}
 }
 
+// byID mantém fotos, ingredientes e passos na ordem em que foram criados;
+// sem ORDER BY o Postgres não garante ordem nenhuma.
+func byID(db *gorm.DB) *gorm.DB { return db.Order("id") }
+
 func (r *RecipeRepository) Create(recipe *model.Recipe) error {
 	return r.db.Create(recipe).Error
 }
@@ -23,10 +28,10 @@ func (r *RecipeRepository) FindAll() ([]model.Recipe, error) {
 	err := r.db.
 		Preload("User").
 		Preload("Category").
-		Preload("Images").
-		Preload("Ingredients").
+		Preload("Images", byID).
+		Preload("Ingredients", byID).
 		Preload("Ingredients.Ingredient").
-		Preload("Preparations").
+		Preload("Preparations", byID).
 		Find(&recipes).Error
 	return recipes, err
 }
@@ -39,10 +44,10 @@ func (r *RecipeRepository) FindByID(id string) (*model.Recipe, error) {
 	err := r.db.
 		Preload("User").
 		Preload("Category").
-		Preload("Images").
-		Preload("Ingredients").
+		Preload("Images", byID).
+		Preload("Ingredients", byID).
 		Preload("Ingredients.Ingredient").
-		Preload("Preparations").
+		Preload("Preparations", byID).
 		First(&recipe, "id = ?", id).Error
 	if err != nil {
 		return nil, err
@@ -50,8 +55,64 @@ func (r *RecipeRepository) FindByID(id string) (*model.Recipe, error) {
 	return &recipe, nil
 }
 
+// Update grava só as colunas da receita. Sem o Omit, o Save também gravava a
+// Category carregada pelo Preload e voltava o category_id para o antigo.
 func (r *RecipeRepository) Update(recipe *model.Recipe) error {
-	return r.db.Save(recipe).Error
+	return r.db.Omit(clause.Associations).Save(recipe).Error
+}
+
+// Replace troca dados, fotos, ingredientes e passos da receita numa transação.
+// Os itens antigos são apagados e os novos criados na ordem recebida.
+func (r *RecipeRepository) Replace(recipe *model.Recipe) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		err := tx.Model(&model.Recipe{ID: recipe.ID}).
+			Select("Name", "Description", "Time", "Portions", "CategoryID").
+			Updates(recipe).Error
+		if err != nil {
+			return err
+		}
+
+		for _, item := range []any{&model.ImageRecipe{}, &model.IngredientRecipe{}, &model.Preparation{}} {
+			if err := tx.Where("recipe_id = ?", recipe.ID).Delete(item).Error; err != nil {
+				return err
+			}
+		}
+
+		for i := range recipe.Images {
+			recipe.Images[i].RecipeID = recipe.ID
+		}
+		if len(recipe.Images) > 0 {
+			if err := tx.Create(&recipe.Images).Error; err != nil {
+				return err
+			}
+		}
+
+		for i := range recipe.Preparations {
+			recipe.Preparations[i].RecipeID = recipe.ID
+		}
+		if len(recipe.Preparations) > 0 {
+			if err := tx.Create(&recipe.Preparations).Error; err != nil {
+				return err
+			}
+		}
+
+		for i := range recipe.Ingredients {
+			ir := &recipe.Ingredients[i]
+			name := ir.Ingredient.Name
+			if err := tx.Where("name = ?", name).FirstOrCreate(&ir.Ingredient, model.Ingredient{Name: name}).Error; err != nil {
+				return err
+			}
+			ir.RecipeID = recipe.ID
+			ir.IngredientID = ir.Ingredient.ID
+		}
+		if len(recipe.Ingredients) > 0 {
+			if err := tx.Omit(clause.Associations).Create(&recipe.Ingredients).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 }
 
 func (r *RecipeRepository) Delete(id string) error {

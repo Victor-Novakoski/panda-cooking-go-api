@@ -26,10 +26,14 @@ type CreateRecipeInput struct {
 	Time         string                  `json:"time" binding:"required"`
 	Portions     int                     `json:"portions" binding:"required,min=1"`
 	CategoryID   uint                    `json:"category_id" binding:"required"`
-	Images       []ImageRecipeInput      `json:"images"`
-	Ingredients  []IngredientRecipeInput `json:"ingredients"`
-	Preparations []PreparationInput      `json:"preparations"`
+	Images       []ImageRecipeInput      `json:"images" binding:"dive"`
+	Ingredients  []IngredientRecipeInput `json:"ingredients" binding:"dive"`
+	Preparations []PreparationInput      `json:"preparations" binding:"dive"`
 }
+
+// ReplaceRecipeInput é a receita inteira, como na criação: o que não vier
+// (foto, ingrediente, passo) deixa de existir.
+type ReplaceRecipeInput = CreateRecipeInput
 
 type UpdateRecipeInput struct {
 	Name        string `json:"name"`
@@ -109,7 +113,7 @@ func (s *RecipeService) Create(userID string, input CreateRecipeInput) (*RecipeR
 	}
 
 	if err := s.repo.Create(recipe); err != nil {
-		return nil, err
+		return nil, categoryErr(err)
 	}
 
 	// ingredientes precisam de tratamento especial (FirstOrCreate)
@@ -186,7 +190,52 @@ func (s *RecipeService) Update(recipeID, userID string, input UpdateRecipeInput)
 	}
 
 	if err := s.repo.Update(recipe); err != nil {
+		return nil, categoryErr(err)
+	}
+
+	return s.GetByID(recipe.ID)
+}
+
+// Replace troca a receita inteira de uma vez (dados, fotos, ingredientes e
+// passos). É o que a tela de edição usa: numa transação só, ou muda tudo ou
+// nada, sem deixar a receita pela metade se uma das partes falhar.
+func (s *RecipeService) Replace(recipeID, userID string, input ReplaceRecipeInput) (*RecipeResponse, error) {
+	recipe, err := s.repo.FindByID(recipeID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrRecipeNotFound
+		}
 		return nil, err
+	}
+
+	if recipe.UserID != userID {
+		return nil, ErrForbiddenEditRecipe
+	}
+
+	updated := &model.Recipe{
+		ID:          recipe.ID,
+		Name:        input.Name,
+		Description: input.Description,
+		Time:        input.Time,
+		Portions:    input.Portions,
+		UserID:      recipe.UserID,
+		CategoryID:  input.CategoryID,
+	}
+	for _, img := range input.Images {
+		updated.Images = append(updated.Images, model.ImageRecipe{URL: img.URL})
+	}
+	for _, ing := range input.Ingredients {
+		updated.Ingredients = append(updated.Ingredients, model.IngredientRecipe{
+			Amount:     ing.Amount,
+			Ingredient: model.Ingredient{Name: normalizeIngredient(ing.Name)},
+		})
+	}
+	for _, prep := range input.Preparations {
+		updated.Preparations = append(updated.Preparations, model.Preparation{Description: prep.Description})
+	}
+
+	if err := s.repo.Replace(updated); err != nil {
+		return nil, categoryErr(err)
 	}
 
 	return s.GetByID(recipe.ID)
@@ -430,6 +479,15 @@ func (s *RecipeService) DeletePreparation(recipeID, userID string, prepID uint) 
 	}
 
 	return s.repo.DeletePreparation(prepID)
+}
+
+// categoryErr troca a chave estrangeira violada (a única da receita que vem
+// do cliente é a categoria) por um 400 em vez de um 500.
+func categoryErr(err error) error {
+	if errors.Is(err, gorm.ErrForeignKeyViolated) {
+		return ErrCategoryNotFound
+	}
+	return err
 }
 
 func normalizeIngredient(name string) string {
