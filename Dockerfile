@@ -1,21 +1,13 @@
 # Estágio 1: compilar o binário
-FROM golang:1.25-alpine AS builder
-
-WORKDIR /app
-
+FROM golang:1.26-alpine AS build
+WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
-
 COPY . .
-RUN go build -o api ./cmd/main.go
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/api ./cmd
 
-# Estágio 2: imagem final mínima
-FROM alpine:3.20
-
-WORKDIR /app
-
-COPY --from=builder /app/api .
-
+# Estágio 2: imagem final mínima, sem shell e rodando sem root
+FROM gcr.io/distroless/static-debian12:nonroot AS prod
+COPY --from=build /out/api /api
 EXPOSE 8080
-
-CMD ["./api"]
+ENTRYPOINT ["/api"]
