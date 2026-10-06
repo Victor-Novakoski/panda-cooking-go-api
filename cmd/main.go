@@ -10,6 +10,7 @@ import (
 	"panda-cooking-go-api/internal/middleware"
 	"panda-cooking-go-api/internal/ratelimit"
 	"panda-cooking-go-api/internal/repository"
+	"panda-cooking-go-api/internal/seed"
 	"panda-cooking-go-api/internal/service"
 
 	"github.com/gin-contrib/cors"
@@ -35,6 +36,15 @@ func main() {
 		log.Fatalf("erro ao conectar ao banco: %v", err)
 	}
 	log.Println("banco de dados conectado")
+	if cfg.SeedDemo {
+		created, err := seed.Demo(db, false)
+		if err != nil {
+			log.Fatalf("erro ao criar os dados de demonstração: %v", err)
+		}
+		if created {
+			log.Printf("dados de demonstração criados (senha dos usuários: %s)", seed.DemoPassword)
+		}
+	}
 	database.Seed(db)
 
 	// Repositories

@@ -127,9 +127,9 @@ Middleware com `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` e,
 
 `r.Run` não tem timeout. Trocar por `http.Server` com `ReadHeaderTimeout`, `ReadTimeout`, `WriteTimeout` e `IdleTimeout`, e limitar o tamanho do corpo. Listagens precisam de paginação.
 
-## 21. Banco exposto — 🟡
+## 21. Banco exposto — 🟢
 
-O compose de dev publica o Postgres na porta 5433 de todas as interfaces. Publicar só em `127.0.0.1`. Em produção o banco não publica porta.
+O compose de dev publica Postgres, API e front só em `127.0.0.1`: ninguém na mesma rede (Wi-Fi do café, por exemplo) acessa o banco com a senha padrão. Em produção o banco não publica porta.
 
 ## 22. Logs e auditoria — 🔴
 

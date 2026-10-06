@@ -18,15 +18,16 @@ O front fica no repositório [panda-cooking-front](https://github.com/Victor-Nov
 | Autenticação | JWT HS256 (golang-jwt), senha com bcrypt |
 | Configuração | variáveis de ambiente (`.env` via godotenv) |
 | Testes | `testing` + testify, mocks escritos à mão |
-| Dev | Docker Compose (Postgres) + air (hot reload) |
+| Dev | Docker Compose (Postgres, API com air e front com `next dev`) |
 
 ## Camadas
 
 ```
 cmd/main.go            monta tudo: config → banco → repositories → services → handlers → rotas
-cmd/seed               popula o banco com receitas de exemplo
+cmd/seed               recria os dados de demonstração (apaga o banco)
 internal/config        lê as variáveis de ambiente
 internal/database      conexão, AutoMigrate e categorias padrão
+internal/seed          usuários e receitas de demonstração (SEED_DEMO=true ao subir, ou cmd/seed)
 internal/model         structs GORM (tabelas)
 internal/repository    acesso ao banco; interfaces em interfaces.go
 internal/service       regra de negócio, DTOs de entrada e resposta

@@ -47,7 +47,7 @@ Checklist para toda mudança (detalhes em [SECURITY.md](SECURITY.md)):
 - **Fluxo:** criar a branch a partir da `develop` com o mesmo tipo do commit (`feat/busca-de-receitas`, `fix/...`, `docs/...`, `chore/...`, `ci/...`), abrir PR para a `develop` e fazer merge com os checks verdes. A branch é apagada automaticamente depois do merge.
 - **Versão:** quando a `develop` fecha uma etapa, abrir PR da `develop` para a `main`.
 - **Como fazer o merge:** feature → `develop` com squash (um commit por PR); `develop` → `main` sempre com merge commit, nunca rebase ou squash, para as duas branches não divergirem. Para atualizar a branch de feature, `git pull --rebase origin develop`.
-- `main` e `develop` sempre funcionando: sobem com `make setup` e passam nos testes.
+- `main` e `develop` sempre funcionando: sobem com `docker compose up` e passam nos testes.
 - **Conventional Commits:** mensagem no formato `tipo: assunto em português, minúsculo`. Tipos: `feat` (funcionalidade), `fix` (correção), `docs`, `test`, `refactor`, `perf`, `style`, `build`, `ci`, `chore`, `revert`. Escopo opcional, ex.: `feat(api): busca de receitas`. Mudança que quebra compatibilidade leva `!`: `feat!: ...`.
 - O título do PR segue o mesmo formato, porque o squash usa o título como commit; a CI confere.
 - Commits pequenos, um assunto por commit.

@@ -1,3 +1,9 @@
+# Desenvolvimento: código montado como volume e hot reload com air (docker compose up)
+FROM golang:1.27-alpine AS dev
+RUN go install github.com/air-verse/air@v1.67.4
+WORKDIR /app
+CMD ["air"]
+
 # Estágio 1: compilar o binário
 FROM golang:1.27-alpine AS build
 WORKDIR /src

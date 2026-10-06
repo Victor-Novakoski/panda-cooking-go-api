@@ -12,21 +12,39 @@ Go 1.26 · Gin · GORM · PostgreSQL 16 · JWT · Docker · GitHub Actions
 
 ## Rodando local
 
-Precisa de Go 1.26+, Docker e [air](https://github.com/air-verse/air).
+Precisa só de Docker com Compose. Clone a API e o front lado a lado:
 
 ```bash
+git clone https://github.com/Victor-Novakoski/panda-cooking-go-api.git
+git clone https://github.com/Victor-Novakoski/panda-cooking-front.git
+cd panda-cooking-go-api
 cp .env.example .env
-make setup      # sobe o Postgres, popula com receitas de exemplo e inicia com hot reload
+docker compose up --build
 ```
 
-A API fica em `http://localhost:8080` (`GET /health`). Depois da primeira vez, `make dev` basta.
+| O quê | Endereço |
+| --- | --- |
+| Front | http://localhost:3000 |
+| API | http://localhost:8080/health |
+| Postgres | `localhost:5433` (`postgres` / `postgres`) |
+
+Na primeira subida a API cria dez receitas e três usuários. Todos entram com a senha `panda-cooking-demo`:
+
+| Usuário | E-mail | Admin |
+| --- | --- | --- |
+| Chef Maria Silva | `maria@pandacooking.com` | sim |
+| João Cozinheiro | `joao@pandacooking.com` | não |
+| Ana Paula Gourmet | `ana@pandacooking.com` | não |
+
+API e front recarregam sozinhos ao salvar um arquivo. Se o front estiver em outra pasta, aponte `FRONT_DIR` no `.env`; para subir só banco e API, `docker compose up api`.
 
 | Comando | O que faz |
 | --- | --- |
-| `make dev` | API com hot reload |
-| `make test` | testes com detector de race |
+| `make dev` | sobe banco, API e front |
+| `make down` | para tudo (os dados ficam; `docker compose down -v` apaga) |
+| `make seed` | apaga o banco e recria os dados de demonstração |
+| `make test` | testes com detector de race (precisa de Go 1.26+) |
 | `make lint` | golangci-lint |
-| `make seed` | recria os dados de exemplo |
 
 ## Documentação
 
