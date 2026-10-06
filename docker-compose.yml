@@ -1,0 +1,16 @@
+# uso: docker compose up -d
+# sobe só o banco — air roda a API na máquina
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: panda_cooking
+    ports:
+      - "5433:5432"
+    volumes:
+      - panda_data:/var/lib/postgresql/data
+
+volumes:
+  panda_data:
