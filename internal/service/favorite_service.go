@@ -26,14 +26,14 @@ type FavoriteResponse struct {
 func (s *FavoriteService) Add(userID, recipeID string) (*FavoriteResponse, error) {
 	if _, err := s.recipeRepo.FindByID(recipeID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("receita não encontrada")
+			return nil, ErrRecipeNotFound
 		}
 		return nil, err
 	}
 
 	// impede favorito duplicado
 	if _, err := s.repo.Find(userID, recipeID); err == nil {
-		return nil, errors.New("receita já está nos favoritos")
+		return nil, ErrAlreadyFavorite
 	}
 
 	fav := &model.FavoriteRecipe{UserID: userID, RecipeID: recipeID}
@@ -54,7 +54,7 @@ func (s *FavoriteService) Remove(userID, recipeID string) error {
 	fav, err := s.repo.Find(userID, recipeID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("receita não está nos favoritos")
+			return ErrFavoriteNotFound
 		}
 		return err
 	}

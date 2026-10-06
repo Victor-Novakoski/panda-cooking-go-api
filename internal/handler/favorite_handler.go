@@ -28,7 +28,7 @@ func (h *FavoriteHandler) add(c *gin.Context) {
 
 	fav, err := h.service.Add(userID, recipeID)
 	if err != nil {
-		c.JSON(statusFromErr(err), gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 
@@ -40,7 +40,7 @@ func (h *FavoriteHandler) remove(c *gin.Context) {
 	recipeID := c.Param("recipeID")
 
 	if err := h.service.Remove(userID, recipeID); err != nil {
-		c.JSON(statusFromErr(err), gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 

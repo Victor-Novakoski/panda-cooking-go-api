@@ -32,6 +32,9 @@ func (r *RecipeRepository) FindAll() ([]model.Recipe, error) {
 }
 
 func (r *RecipeRepository) FindByID(id string) (*model.Recipe, error) {
+	if !isUUID(id) {
+		return nil, gorm.ErrRecordNotFound
+	}
 	var recipe model.Recipe
 	err := r.db.
 		Preload("User").
