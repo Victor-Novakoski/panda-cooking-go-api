@@ -2,9 +2,10 @@ package service
 
 import (
 	"errors"
+	"strings"
+
 	"panda-cooking-go-api/internal/model"
 	"panda-cooking-go-api/internal/repository"
-	"strings"
 
 	"gorm.io/gorm"
 )
@@ -20,13 +21,13 @@ func NewRecipeService(repo repository.RecipeRepo) *RecipeService {
 // --- DTOs de entrada ---
 
 type CreateRecipeInput struct {
-	Name        string                   `json:"name" binding:"required"`
-	Description string                   `json:"description" binding:"required"`
-	Time        string                   `json:"time" binding:"required"`
-	Portions    int                      `json:"portions" binding:"required,min=1"`
-	CategoryID  uint                     `json:"category_id" binding:"required"`
-	Images      []ImageRecipeInput       `json:"images"`
-	Ingredients []IngredientRecipeInput  `json:"ingredients"`
+	Name         string                  `json:"name" binding:"required"`
+	Description  string                  `json:"description" binding:"required"`
+	Time         string                  `json:"time" binding:"required"`
+	Portions     int                     `json:"portions" binding:"required,min=1"`
+	CategoryID   uint                    `json:"category_id" binding:"required"`
+	Images       []ImageRecipeInput      `json:"images"`
+	Ingredients  []IngredientRecipeInput `json:"ingredients"`
 	Preparations []PreparationInput      `json:"preparations"`
 }
 
@@ -54,16 +55,16 @@ type PreparationInput struct {
 // --- DTOs de saída ---
 
 type RecipeResponse struct {
-	ID           string                    `json:"id"`
-	Name         string                    `json:"name"`
-	Description  string                    `json:"description"`
-	Time         string                    `json:"time"`
-	Portions     int                       `json:"portions"`
-	UserID       string                    `json:"user_id"`
-	Category     CategoryResponse          `json:"category"`
-	Images       []ImageRecipeResponse     `json:"images"`
+	ID           string                     `json:"id"`
+	Name         string                     `json:"name"`
+	Description  string                     `json:"description"`
+	Time         string                     `json:"time"`
+	Portions     int                        `json:"portions"`
+	UserID       string                     `json:"user_id"`
+	Category     CategoryResponse           `json:"category"`
+	Images       []ImageRecipeResponse      `json:"images"`
 	Ingredients  []IngredientRecipeResponse `json:"ingredients"`
-	Preparations []PreparationResponse     `json:"preparations"`
+	Preparations []PreparationResponse      `json:"preparations"`
 }
 
 type CategoryResponse struct {

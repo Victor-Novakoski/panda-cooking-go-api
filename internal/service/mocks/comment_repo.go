@@ -3,11 +3,11 @@ package mocks
 import "panda-cooking-go-api/internal/model"
 
 type CommentRepoMock struct {
-	CreateFn  func(comment *model.Comment) error
-	FindAllFn func() ([]model.Comment, error)
+	CreateFn   func(comment *model.Comment) error
+	FindAllFn  func() ([]model.Comment, error)
 	FindByIDFn func(id uint) (*model.Comment, error)
-	UpdateFn  func(comment *model.Comment) error
-	DeleteFn  func(id uint) error
+	UpdateFn   func(comment *model.Comment) error
+	DeleteFn   func(id uint) error
 }
 
 func (m *CommentRepoMock) Create(comment *model.Comment) error { return m.CreateFn(comment) }

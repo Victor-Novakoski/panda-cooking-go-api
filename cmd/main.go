@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+
 	"panda-cooking-go-api/internal/config"
 	"panda-cooking-go-api/internal/database"
 	"panda-cooking-go-api/internal/handler"
@@ -29,25 +30,25 @@ func main() {
 	database.Seed(db)
 
 	// Repositories
-	userRepo     := repository.NewUserRepository(db)
-	recipeRepo   := repository.NewRecipeRepository(db)
+	userRepo := repository.NewUserRepository(db)
+	recipeRepo := repository.NewRecipeRepository(db)
 	categoryRepo := repository.NewCategoryRepository(db)
-	commentRepo  := repository.NewCommentRepository(db)
+	commentRepo := repository.NewCommentRepository(db)
 	favoriteRepo := repository.NewFavoriteRepository(db)
 
 	// Services
-	userService     := service.NewUserService(userRepo, cfg.SecretKey)
-	recipeService   := service.NewRecipeService(recipeRepo)
+	userService := service.NewUserService(userRepo, cfg.SecretKey)
+	recipeService := service.NewRecipeService(recipeRepo)
 	categoryService := service.NewCategoryService(categoryRepo)
-	commentService  := service.NewCommentService(commentRepo, recipeRepo)
+	commentService := service.NewCommentService(commentRepo, recipeRepo)
 	favoriteService := service.NewFavoriteService(favoriteRepo, recipeRepo)
 
 	// Handlers
-	authHandler     := handler.NewAuthHandler(userService)
-	userHandler     := handler.NewUserHandler(userService)
-	recipeHandler   := handler.NewRecipeHandler(recipeService)
+	authHandler := handler.NewAuthHandler(userService)
+	userHandler := handler.NewUserHandler(userService)
+	recipeHandler := handler.NewRecipeHandler(recipeService)
 	categoryHandler := handler.NewCategoryHandler(categoryService)
-	commentHandler  := handler.NewCommentHandler(commentService)
+	commentHandler := handler.NewCommentHandler(commentService)
 	favoriteHandler := handler.NewFavoriteHandler(favoriteService)
 
 	authMiddleware := middleware.Auth(cfg.SecretKey)

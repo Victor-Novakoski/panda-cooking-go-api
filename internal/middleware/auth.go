@@ -2,8 +2,9 @@ package middleware
 
 import (
 	"net/http"
-	"panda-cooking-go-api/pkg/token"
 	"strings"
+
+	"panda-cooking-go-api/pkg/token"
 
 	"github.com/gin-gonic/gin"
 )
