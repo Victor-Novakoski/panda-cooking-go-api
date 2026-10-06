@@ -1,4 +1,4 @@
-.PHONY: help dev test seed migrate-up migrate-down setup
+.PHONY: help setup dev test lint seed reseed build run clean deps docker-up docker-down docker-logs
 
 help: ## Mostra este help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -16,8 +16,11 @@ setup: ## Setup completo: Docker + Seed + Dev server (ideal para primeira vez)
 dev: ## Inicia o servidor em modo desenvolvimento com hot reload
 	air
 
-test: ## Roda os testes
-	go test -v ./...
+test: ## Roda os testes (com detector de race, igual à CI)
+	go test -race -count=1 ./...
+
+lint: ## Roda o golangci-lint (mesma configuração da CI)
+	golangci-lint run ./...
 
 seed: ## Popula o banco com dados de exemplo
 	@echo "🐼 Populando banco de dados..."
@@ -25,19 +28,11 @@ seed: ## Popula o banco com dados de exemplo
 
 reseed: docker-up seed ## Re-popula o banco (limpa e cria tudo de novo)
 
-migrate-up: ## Aplica as migrations
-	@echo "Aplicando migrations..."
-	go run cmd/migrate/main.go up
-
-migrate-down: ## Reverte a última migration
-	@echo "Revertendo migrations..."
-	go run cmd/migrate/main.go down
-
 build: ## Compila a aplicação
-	go build -o bin/api cmd/api/main.go
+	go build -o bin/api ./cmd
 
 run: ## Executa a aplicação
-	go run cmd/api/main.go
+	go run ./cmd
 
 clean: ## Remove arquivos temporários e build
 	rm -rf bin/ .temp/
