@@ -31,7 +31,8 @@ internal/model         structs GORM (tabelas)
 internal/repository    acesso ao banco; interfaces em interfaces.go
 internal/service       regra de negócio, DTOs de entrada e resposta
 internal/handler       HTTP: lê a requisição, chama o service, devolve JSON
-internal/middleware    autenticação JWT
+internal/middleware    autenticação JWT e limite de requisições por IP
+internal/ratelimit     contador de tentativas por chave (IP, e-mail) em memória
 pkg/token              gerar e validar o JWT
 ```
 
@@ -40,6 +41,7 @@ Regras:
 - Handler só fala HTTP. Regra de negócio (dono da receita, admin) fica no service.
 - O service depende das **interfaces** do repository, por isso os testes usam os mocks de `internal/service/mocks`.
 - O service devolve DTOs (`UserResponse`, `RecipeResponse`...), nunca o model direto, para não vazar campos como `Password`.
+- Erro esperado sai do service como `service.Error` (ex.: `ErrRecipeNotFound`), e o handler converte em status com `respondError`. Erro de outro tipo vira 500 genérico.
 
 ## Modelo de dados
 

@@ -2,7 +2,7 @@
 
 Backlog em ordem. Só se trabalha na etapa atual; o que surgir no caminho entra aqui antes de ser feito ([RULES.md](RULES.md#1-escopo)). Os números `#N` apontam para os itens de [SECURITY.md](SECURITY.md).
 
-**Etapa atual: 1 — Setup do repositório**
+**Etapa atual: 2 — Segurança da base**
 
 ## Etapa 0 — Base da API ✅
 
@@ -24,12 +24,15 @@ Backlog em ordem. Só se trabalha na etapa atual; o que surgir no caminho entra 
 
 ## Etapa 2 — Segurança da base
 
-- [ ] Item da receita (foto, passo, ingrediente) só pode ser alterado pela receita a que pertence, com teste (#6)
-- [ ] Erros tipados no service; 500 com mensagem genérica e detalhe no log; e-mail duplicado vira 409 (#12)
-- [ ] `SECRET_KEY` obrigatória com 32+ caracteres; produção recusa a de exemplo (#1)
+- [x] Item da receita (foto, passo, ingrediente) só pode ser alterado pela receita a que pertence, com teste (#6)
+- [x] Erros tipados no service; 500 com mensagem genérica e detalhe no log; e-mail duplicado vira 409 (#12)
+- [x] Id que não é UUID responde 404 em vez de 500 (#12)
+- [x] `SECRET_KEY` obrigatória com 32+ caracteres; produção recusa a de exemplo (#1)
 - [ ] Tamanho máximo nos textos, trim, e-mail minúsculo, limite do corpo (#3)
 - [ ] Senha: mínimo 10, máximo 72 bytes, recusa de senhas comuns; tempo constante no login (#5)
-- [ ] Rate limit global e no login, bloqueio progressivo por e-mail (#8, #15)
+- [x] Limite no login: 10 por minuto por IP e bloqueio de 15 min depois de 5 senhas erradas no mesmo e-mail (#8)
+- [ ] Rate limit global (#15)
+- [ ] Erro 400 de validação sem nomes internos de struct (hoje sai o texto do validator do Gin), junto com o 422 por campo de [DESIGN.md](DESIGN.md) (#12)
 - [ ] `http.Server` com timeouts (#20)
 - [ ] CORS por `CORS_ORIGINS` (#17) e middleware de headers de segurança (#19)
 - [ ] Postgres do compose só em `127.0.0.1` (#21)
