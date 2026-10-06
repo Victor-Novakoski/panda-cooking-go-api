@@ -2,12 +2,13 @@ package handler_test
 
 import (
 	"net/http"
+	"testing"
+
 	"panda-cooking-go-api/internal/handler"
 	"panda-cooking-go-api/internal/handler/testhelper"
+	"panda-cooking-go-api/internal/model"
 	"panda-cooking-go-api/internal/service"
 	"panda-cooking-go-api/internal/service/mocks"
-	"panda-cooking-go-api/internal/model"
-	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"

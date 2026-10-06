@@ -2,12 +2,12 @@ package handler
 
 import (
 	"net/http"
+
 	"panda-cooking-go-api/internal/middleware"
 	"panda-cooking-go-api/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
-
 
 type UserHandler struct {
 	service *service.UserService

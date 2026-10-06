@@ -1,10 +1,11 @@
 package service_test
 
 import (
+	"testing"
+
 	"panda-cooking-go-api/internal/model"
 	"panda-cooking-go-api/internal/service"
 	"panda-cooking-go-api/internal/service/mocks"
-	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -17,7 +17,9 @@ func init() {
 func NewRequest(method, url string, body any) *http.Request {
 	var b bytes.Buffer
 	if body != nil {
-		json.NewEncoder(&b).Encode(body)
+		if err := json.NewEncoder(&b).Encode(body); err != nil {
+			panic(err)
+		}
 	}
 	req, _ := http.NewRequest(method, url, &b)
 	req.Header.Set("Content-Type", "application/json")
@@ -33,5 +35,7 @@ func Execute(router *gin.Engine, req *http.Request) *httptest.ResponseRecorder {
 
 // Decode desserializa o body do response em v.
 func Decode(w *httptest.ResponseRecorder, v any) {
-	json.NewDecoder(w.Body).Decode(v)
+	if err := json.NewDecoder(w.Body).Decode(v); err != nil {
+		panic(err)
+	}
 }
