@@ -1,16 +1,70 @@
-# uso: docker compose up -d
-# sobe só o banco — air roda a API na máquina
+# uso: docker compose up
+# sobe banco, API (hot reload com air) e front (next dev). O front precisa estar
+# clonado ao lado deste repositório (../panda-cooking-front) ou no caminho de FRONT_DIR.
+# Só banco e API: docker compose up api
 services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: panda_cooking
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-panda_cooking}
     ports:
-      - "5433:5432"
+      - "127.0.0.1:${DB_PORT:-5433}:5432"
     volumes:
       - panda_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  api:
+    build:
+      context: .
+      target: dev
+    environment:
+      APP_ENV: development
+      PORT: 8080
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-panda_cooking}
+      SECRET_KEY: ${SECRET_KEY:?copie o .env.example para .env}
+      SEED_DEMO: "true"
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - .:/app
+      - go_mod:/go/pkg/mod
+      - go_build:/root/.cache/go-build
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  front:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm ci && npm run dev"
+    environment:
+      # o navegador chama a API pela porta publicada; o servidor do Next, de dentro da rede do compose
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+      API_INTERNAL_URL: http://api:8080
+      WATCHPACK_POLLING: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ${FRONT_DIR:-../panda-cooking-front}:/app
+      - front_node_modules:/app/node_modules
+      - front_next:/app/.next
+    depends_on:
+      - api
 
 volumes:
   panda_data:
+  go_mod:
+  go_build:
+  front_node_modules:
+  front_next:

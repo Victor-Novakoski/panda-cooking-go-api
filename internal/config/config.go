@@ -19,6 +19,9 @@ type Config struct {
 	Port      string
 	SecretKey string
 	DB        DBConfig
+	// SeedDemo cria os usuários e receitas de demonstração ao subir, se o
+	// banco não tiver usuário nenhum (SEED_DEMO=true).
+	SeedDemo bool
 }
 
 type DBConfig struct {
@@ -46,13 +49,8 @@ func Load() (Config, error) {
 		Env:       env("APP_ENV", "development"),
 		Port:      env("PORT", "8080"),
 		SecretKey: os.Getenv("SECRET_KEY"),
-		DB: DBConfig{
-			Host:     env("DB_HOST", "localhost"),
-			Port:     env("DB_PORT", "5432"),
-			User:     env("DB_USER", "postgres"),
-			Password: env("DB_PASSWORD", "postgres"),
-			Name:     env("DB_NAME", "panda_cooking"),
-		},
+		DB:        LoadDB(),
+		SeedDemo:  os.Getenv("SEED_DEMO") == "true",
 	}
 
 	switch {
@@ -65,6 +63,17 @@ func Load() (Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// LoadDB lê só a conexão com o banco; o seed usa sem precisar da SECRET_KEY.
+func LoadDB() DBConfig {
+	return DBConfig{
+		Host:     env("DB_HOST", "localhost"),
+		Port:     env("DB_PORT", "5432"),
+		User:     env("DB_USER", "postgres"),
+		Password: env("DB_PASSWORD", "postgres"),
+		Name:     env("DB_NAME", "panda_cooking"),
+	}
 }
 
 func env(key, fallback string) string {

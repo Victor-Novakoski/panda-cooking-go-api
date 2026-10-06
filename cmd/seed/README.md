@@ -29,37 +29,17 @@ Cada receita inclui:
 
 ## 🚀 Como usar
 
-### 1. Configure a conexão com o banco
+Com `SEED_DEMO=true` (padrão no `docker compose up`), a API cria esses dados sozinha ao subir, se o banco ainda não tiver usuário.
 
-Por padrão, o script tenta conectar em:
-```
-host=localhost user=postgres password=postgres dbname=panda_cooking port=5433
-```
-
-Para usar outra configuração, defina a variável de ambiente:
-```bash
-export DATABASE_URL="host=localhost user=seu_user password=sua_senha dbname=panda_cooking port=5433 sslmode=disable"
-```
-
-### 2. Execute o seed
+Para apagar tudo e recriar:
 
 ```bash
 make seed
 ```
 
-Ou diretamente:
-```bash
-go run cmd/seed/main.go
-```
-
 ## ⚠️ Atenção
 
-O script **limpa todos os dados existentes** antes de popular. Use apenas em ambiente de desenvolvimento!
-
-```sql
-TRUNCATE TABLE favorite_recipes, comments, preparations, ingredient_recipes, 
-image_recipes, recipes, ingredients, categories, users RESTART IDENTITY CASCADE
-```
+`make seed` **apaga todos os dados** do banco antes de popular. Use apenas em desenvolvimento.
 
 ## 🖼️ Imagens
 
@@ -67,9 +47,11 @@ As imagens são URLs do Unsplash (gratuitas e de alta qualidade). Se quiser usar
 
 1. Baixe as imagens
 2. Salve em uma pasta pública (ex: `public/images/recipes/`)
-3. Atualize as URLs no arquivo `cmd/seed/main.go`
+3. Atualize as URLs em `internal/seed/data.go`
 
 ## 🔑 Usuários de exemplo
+
+Senha de todos: `panda-cooking-demo`.
 
 | Nome | Email | Admin |
 |------|-------|-------|
@@ -77,11 +59,9 @@ As imagens são URLs do Unsplash (gratuitas e de alta qualidade). Se quiser usar
 | João Cozinheiro | joao@pandacooking.com | ❌ |
 | Ana Paula Gourmet | ana@pandacooking.com | ❌ |
 
-**Senha**: As senhas estão hasheadas com bcrypt. Você precisa implementar o hash adequado no código.
-
 ## 🛠️ Personalizando
 
-Para adicionar mais receitas, edite o slice `recipes` na função `seedRecipes()` no arquivo `cmd/seed/main.go`.
+Para adicionar mais receitas, edite `demoRecipes` em `internal/seed/data.go`. O autor é a posição em `demoUsers` e a categoria é o nome.
 
 Exemplo:
 ```go
@@ -91,9 +71,9 @@ Exemplo:
         Description: "Descrição deliciosa",
         Time:        "45 minutos",
         Portions:    4,
-        UserID:      users[0].ID,
-        CategoryID:  1,
     },
+    author:   0,
+    category: "Doces e Sobremesas",
     images: []string{
         "https://images.unsplash.com/photo-xxx",
     },

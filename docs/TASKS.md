@@ -35,8 +35,14 @@ Backlog em ordem. Só se trabalha na etapa atual; o que surgir no caminho entra 
 - [ ] Erro 400 de validação sem nomes internos de struct (hoje sai o texto do validator do Gin), junto com o 422 por campo de [DESIGN.md](DESIGN.md) (#12)
 - [ ] `http.Server` com timeouts (#20)
 - [ ] CORS por `CORS_ORIGINS` (#17) e middleware de headers de segurança (#19)
-- [ ] Postgres do compose só em `127.0.0.1` (#21)
+- [x] Postgres do compose só em `127.0.0.1` (#21)
 - [ ] Logar falha de login, 401, 403 e 429 (#22)
+
+## Etapa 2.1 — Tudo com um `docker compose up`
+
+- [x] Compose com banco, API (air) e front (`next dev`), front clonado ao lado
+- [x] Seed com usuários que conseguem logar (senha com bcrypt), criado sozinho ao subir com `SEED_DEMO=true`
+- [x] `make seed` roda dentro do container, sem precisar de Go na máquina
 
 ## Etapa 3 — API completa
 

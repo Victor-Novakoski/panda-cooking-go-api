@@ -22,3 +22,12 @@ Decisões e o porquê delas. Decisão nova entra aqui ([RULES.md](RULES.md#7-doc
 - **Chave de exemplo só é recusada em produção:** em desenvolvimento o `.env.example` funciona copiado, sem passo extra.
 - **`TranslateError` do GORM ligado:** transforma a violação de unicidade do Postgres em `gorm.ErrDuplicatedKey`, que o service converte em 409 sem depender do texto do erro do banco.
 
+## 2026-10 — Tudo com um `docker compose up`
+
+- **Compose no repositório da API, front clonado ao lado:** banco, migração e seed são da API, então ela é quem sabe subir o ambiente. O front entra por bind mount de `../panda-cooking-front` (ou `FRONT_DIR`), sem imagem publicada nem submódulo. Um terceiro repositório só para o compose seria mais uma coisa para manter sincronizada.
+- **Seed de demonstração dentro da API (`SEED_DEMO=true`):** ao subir, cria categorias, três usuários e dez receitas se não houver usuário nenhum. Não depende de um container a mais nem de Go na máquina, e não apaga o que já foi cadastrado. `make seed` recria tudo do zero.
+- **Senha de demonstração pública (`panda-cooking-demo`):** quem visita o portfólio precisa conseguir entrar. Antes os usuários do seed tinham um texto no lugar do hash e ninguém logava.
+- **Categorias por nome no seed:** antes as receitas apontavam para `CategoryID: 1..12` e dependiam do `RESTART IDENTITY`; se a API tivesse criado as categorias padrão antes, as receitas iam para a categoria errada.
+- **Portas só em `127.0.0.1` (#21):** banco com senha padrão não fica exposto na rede local.
+- **Polling no air e no Next:** no Docker do Windows e do Mac a pasta montada não avisa o container de arquivo alterado; sem polling o hot reload não funciona.
+- **`API_INTERNAL_URL` no front:** a página da receita é renderizada no servidor do Next, que dentro do Docker não alcança `localhost:8080`; ele usa `http://api:8080` e o navegador continua com a URL pública.
