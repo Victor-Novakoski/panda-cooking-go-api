@@ -7,6 +7,7 @@ type RecipeRepoMock struct {
 	FindAllFn                  func() ([]model.Recipe, error)
 	FindByIDFn                 func(id string) (*model.Recipe, error)
 	UpdateFn                   func(recipe *model.Recipe) error
+	ReplaceFn                  func(recipe *model.Recipe) error
 	DeleteFn                   func(id string) error
 	FindOrCreateIngredientFn   func(name string) (*model.Ingredient, error)
 	AddIngredientFn            func(ir *model.IngredientRecipe) error
@@ -27,8 +28,9 @@ func (m *RecipeRepoMock) FindAll() ([]model.Recipe, error)  { return m.FindAllFn
 func (m *RecipeRepoMock) FindByID(id string) (*model.Recipe, error) {
 	return m.FindByIDFn(id)
 }
-func (m *RecipeRepoMock) Update(recipe *model.Recipe) error { return m.UpdateFn(recipe) }
-func (m *RecipeRepoMock) Delete(id string) error            { return m.DeleteFn(id) }
+func (m *RecipeRepoMock) Update(recipe *model.Recipe) error  { return m.UpdateFn(recipe) }
+func (m *RecipeRepoMock) Replace(recipe *model.Recipe) error { return m.ReplaceFn(recipe) }
+func (m *RecipeRepoMock) Delete(id string) error             { return m.DeleteFn(id) }
 func (m *RecipeRepoMock) FindOrCreateIngredient(name string) (*model.Ingredient, error) {
 	return m.FindOrCreateIngredientFn(name)
 }

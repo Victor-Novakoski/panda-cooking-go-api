@@ -25,6 +25,21 @@ func (h *CommentHandler) RegisterRoutes(r *gin.RouterGroup, authMiddleware gin.H
 	r.DELETE("/:id", authMiddleware, h.delete)
 }
 
+// RegisterRecipeRoutes registra as rotas de comentário que ficam sob
+// /recipes/:id, como a lista de comentários de uma receita.
+func (h *CommentHandler) RegisterRecipeRoutes(r *gin.RouterGroup) {
+	r.GET("/:id/comments", h.getByRecipe)
+}
+
+func (h *CommentHandler) getByRecipe(c *gin.Context) {
+	comments, err := h.service.GetByRecipe(c.Param("id"))
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, comments)
+}
+
 func (h *CommentHandler) create(c *gin.Context) {
 	var input service.CreateCommentInput
 	if err := c.ShouldBindJSON(&input); err != nil {

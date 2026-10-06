@@ -20,6 +20,7 @@ var statusByKind = map[service.Kind]int{
 	service.KindConflict:        http.StatusConflict,
 	service.KindUnauthorized:    http.StatusUnauthorized,
 	service.KindTooManyRequests: http.StatusTooManyRequests,
+	service.KindInvalid:         http.StatusBadRequest,
 }
 
 // respondError responde um erro do service: erro conhecido sai com o status e

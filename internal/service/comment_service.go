@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"time"
 
 	"panda-cooking-go-api/internal/model"
 	"panda-cooking-go-api/internal/repository"
@@ -20,6 +21,13 @@ func NewCommentService(repo repository.CommentRepo, recipeRepo repository.Recipe
 
 // --- DTOs ---
 
+// Comentário é público: o autor sai só com nome e foto, sem e-mail.
+type CommentAuthor struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	ImageProfile string `json:"image_profile"`
+}
+
 type CreateCommentInput struct {
 	Description string `json:"description" binding:"required"`
 	RecipeID    string `json:"recipe_id" binding:"required"`
@@ -30,10 +38,12 @@ type UpdateCommentInput struct {
 }
 
 type CommentResponse struct {
-	ID          uint         `json:"id"`
-	Description string       `json:"description"`
-	RecipeID    string       `json:"recipe_id"`
-	User        UserResponse `json:"user"`
+	ID          uint          `json:"id"`
+	Description string        `json:"description"`
+	RecipeID    string        `json:"recipe_id"`
+	User        CommentAuthor `json:"user"`
+	CreatedAt   time.Time     `json:"created_at"`
+	UpdatedAt   time.Time     `json:"updated_at"`
 }
 
 // --- Métodos ---
@@ -68,6 +78,27 @@ func (s *CommentService) Create(userID string, input CreateCommentInput) (*Comme
 
 func (s *CommentService) GetAll() ([]CommentResponse, error) {
 	comments, err := s.repo.FindAll()
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]CommentResponse, len(comments))
+	for i, c := range comments {
+		result[i] = *toCommentResponse(c)
+	}
+	return result, nil
+}
+
+// GetByRecipe lista os comentários de uma receita.
+func (s *CommentService) GetByRecipe(recipeID string) ([]CommentResponse, error) {
+	if _, err := s.recipeRepo.FindByID(recipeID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrRecipeNotFound
+		}
+		return nil, err
+	}
+
+	comments, err := s.repo.FindByRecipe(recipeID)
 	if err != nil {
 		return nil, err
 	}
@@ -127,6 +158,12 @@ func toCommentResponse(c model.Comment) *CommentResponse {
 		ID:          c.ID,
 		Description: c.Description,
 		RecipeID:    c.RecipeID,
-		User:        *toUserResponse(&c.User),
+		User: CommentAuthor{
+			ID:           c.User.ID,
+			Name:         c.User.Name,
+			ImageProfile: c.User.ImageProfile,
+		},
+		CreatedAt: c.CreatedAt,
+		UpdatedAt: c.UpdatedAt,
 	}
 }

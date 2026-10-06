@@ -66,6 +66,8 @@ IDs de usuário e receita são UUID; o resto é inteiro sequencial.
 | GET | `/recipes`, `/recipes/:id` | — |
 | POST | `/recipes` | ✅ |
 | PATCH, DELETE | `/recipes/:id` | ✅ dono |
+| PUT | `/recipes/:id` (receita inteira, numa transação) | ✅ dono |
+| GET | `/recipes/:id/comments` | — |
 | POST | `/recipes/:id/images`, `/ingredients`, `/preparations` | ✅ dono |
 | PATCH, DELETE | `/recipes/:id/images/:imageID`, `/preparations/:prepID` | ✅ dono |
 | DELETE | `/recipes/:id/ingredients/:ingredientID` | ✅ dono |
