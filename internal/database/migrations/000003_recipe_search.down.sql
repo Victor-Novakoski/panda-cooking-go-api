@@ -1,0 +1,4 @@
+DROP INDEX IF EXISTS recipes_search_idx;
+DROP FUNCTION IF EXISTS search_normalize(TEXT);
+DROP EXTENSION IF EXISTS pg_trgm;
+DROP EXTENSION IF EXISTS unaccent;

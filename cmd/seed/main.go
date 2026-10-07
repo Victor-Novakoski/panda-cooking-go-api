@@ -1,9 +1,13 @@
-// Recria os dados de demonstração. Apaga tudo o que estiver no banco.
+// Command seed apaga todos os dados do banco e recria os de demonstração.
+// Só para desenvolvimento.
 package main
 
 import (
-	"log"
+	"context"
+	"log/slog"
+	"os"
 
+	"panda-cooking-go-api/internal/applog"
 	"panda-cooking-go-api/internal/config"
 	"panda-cooking-go-api/internal/database"
 	"panda-cooking-go-api/internal/seed"
@@ -13,14 +17,24 @@ import (
 
 func main() {
 	_ = godotenv.Load()
+	log := applog.New(false, os.Stdout)
+	ctx := context.Background()
+	url := config.LoadDB().URL()
 
-	db, err := database.Connect(config.LoadDB())
+	db, err := database.Connect(ctx, url, log)
 	if err != nil {
-		log.Fatalf("erro ao conectar ao banco: %v", err)
+		fail(log, "conectar ao banco", err)
 	}
+	if err := database.Migrate(ctx, db, url); err != nil {
+		fail(log, "aplicar migrations", err)
+	}
+	if _, err := seed.Demo(ctx, db, true); err != nil {
+		fail(log, "criar dados de demonstração", err)
+	}
+	log.Info("dados de demonstração recriados", "senha_dos_usuarios", seed.DemoPassword)
+}
 
-	if _, err := seed.Demo(db, true); err != nil {
-		log.Fatalf("erro no seed: %v", err)
-	}
-	log.Printf("dados de demonstração recriados (senha dos usuários: %s)", seed.DemoPassword)
+func fail(log *slog.Logger, step string, err error) {
+	log.Error("seed falhou", "etapa", step, "erro", err)
+	os.Exit(1)
 }

@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+
 	"panda-cooking-go-api/internal/repository"
 )
 
@@ -12,8 +14,8 @@ func NewCategoryService(repo repository.CategoryRepo) *CategoryService {
 	return &CategoryService{repo: repo}
 }
 
-func (s *CategoryService) GetAll() ([]CategoryResponse, error) {
-	categories, err := s.repo.FindAll()
+func (s *CategoryService) GetAll(ctx context.Context) ([]CategoryResponse, error) {
+	categories, err := s.repo.FindAll(ctx)
 	if err != nil {
 		return nil, err
 	}

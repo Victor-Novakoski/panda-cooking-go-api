@@ -1,4 +1,4 @@
-.PHONY: help setup dev down logs seed test lint build run clean deps
+.PHONY: help setup dev down logs seed test test-integration lint build run clean deps
 
 help: ## Mostra este help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -19,8 +19,11 @@ logs: ## Mostra os logs dos containers
 seed: ## Apaga o banco e recria os dados de demonstração
 	docker compose exec api go run ./cmd/seed
 
-test: ## Roda os testes (com detector de race, igual à CI)
+test: ## Roda os testes de unidade e de HTTP (com detector de race, igual à CI)
 	go test -race -count=1 ./...
+
+test-integration: ## Testes contra um Postgres de verdade (sobe um container; precisa de Docker)
+	go test -race -count=1 -tags=integration ./internal/integration/...
 
 lint: ## Roda o golangci-lint (mesma configuração da CI)
 	golangci-lint run ./...

@@ -1,0 +1,1010 @@
+openapi: 3.1.0
+info:
+  title: Panda Cooking API
+  version: 1.0.0
+  summary: API de receitas do Panda Cooking.
+  description: |
+    API REST do Panda Cooking: cadastro e login, receitas com fotos,
+    ingredientes e modo de preparo, comentários e favoritos.
+
+    **Sessão.** O login devolve um access token (JWT, 15 minutos) no corpo e
+    grava o refresh token no cookie `panda_refresh` (HttpOnly,
+    SameSite=Strict, Path=/api/auth). Quando o access token vence, o cliente
+    chama `POST /api/auth/refresh` e recebe outro. O refresh token troca a
+    cada uso; usar de novo um token já trocado derruba a sessão.
+
+    **Erros.** Todo erro tem o formato `{"error": "mensagem"}`. Erro de
+    validação (422) traz também `fields`, com a mensagem de cada campo.
+
+    **Limites.** Por IP: 300 requisições por minuto em /api, 10 tentativas de
+    login por minuto, 30 renovações por minuto e 10 cadastros por hora.
+    Depois de 5 senhas erradas, o login daquele e-mail fica bloqueado por 15
+    minutos. Passou do limite, a resposta é 429 com `Retry-After`.
+  license:
+    name: MIT
+servers:
+  - url: http://localhost:8080
+    description: Local (docker compose)
+tags:
+  - name: Sessão
+  - name: Usuários
+  - name: Receitas
+  - name: Itens da receita
+  - name: Comentários
+  - name: Favoritos
+  - name: Sistema
+
+paths:
+  /health:
+    get:
+      tags: [Sistema]
+      summary: Saúde da API e do banco
+      operationId: health
+      responses:
+        "200":
+          description: API e banco respondendo.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, const: ok }
+        "503":
+          description: O banco não respondeu.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, const: unavailable }
+
+  /api/openapi.yaml:
+    get:
+      tags: [Sistema]
+      summary: Esta especificação
+      operationId: openapi
+      responses:
+        "200":
+          description: Especificação OpenAPI.
+          content:
+            application/yaml:
+              schema: { type: string }
+
+  /api/auth/login:
+    post:
+      tags: [Sessão]
+      summary: Entrar
+      description: Confere e-mail e senha, abre uma sessão e grava os cookies `panda_refresh` e `panda_session`.
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginInput" }
+      responses:
+        "200":
+          description: Sessão aberta.
+          headers:
+            Set-Cookie: { $ref: "#/components/headers/SessionCookies" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResult" }
+        "401":
+          description: E-mail ou senha inválidos.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403": { $ref: "#/components/responses/CrossOrigin" }
+        "422": { $ref: "#/components/responses/Validation" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /api/auth/refresh:
+    post:
+      tags: [Sessão]
+      summary: Renovar o access token
+      description: |
+        Troca o refresh token do cookie por um novo e devolve outro access
+        token. Token já usado é aceito por 20 segundos (duas abas renovando
+        juntas); depois disso, usar de novo derruba a sessão.
+      operationId: refresh
+      security:
+        - refreshCookie: []
+      responses:
+        "200":
+          description: Sessão renovada.
+          headers:
+            Set-Cookie: { $ref: "#/components/headers/SessionCookies" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResult" }
+        "401":
+          description: Sessão vencida, encerrada ou inexistente. Os cookies são apagados.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403": { $ref: "#/components/responses/CrossOrigin" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /api/auth/logout:
+    post:
+      tags: [Sessão]
+      summary: Sair
+      description: Encerra a sessão do cookie e apaga os cookies.
+      operationId: logout
+      security:
+        - refreshCookie: []
+      responses:
+        "204": { description: Sessão encerrada. }
+        "403": { $ref: "#/components/responses/CrossOrigin" }
+
+  /api/users:
+    post:
+      tags: [Usuários]
+      summary: Criar conta
+      description: Não abre sessão; depois do cadastro o cliente chama o login.
+      operationId: signup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SignupInput" }
+      responses:
+        "201":
+          description: Conta criada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "409":
+          description: E-mail já cadastrado (vem também em `fields.email`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ValidationError" }
+        "422": { $ref: "#/components/responses/Validation" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /api/users/profile:
+    get:
+      tags: [Usuários]
+      summary: Ver o próprio perfil
+      operationId: getProfile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Perfil.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Usuários]
+      summary: Editar o próprio perfil
+      description: Muda só os campos enviados. `image_profile` vazio remove a foto.
+      operationId: updateProfile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProfilePatch" }
+      responses:
+        "200":
+          description: Perfil atualizado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Usuários]
+      summary: Apagar a conta
+      description: Apaga a conta com receitas, comentários, favoritos e sessões, e apaga os cookies.
+      operationId: deleteAccount
+      security:
+        - bearerAuth: []
+      responses:
+        "204": { description: Conta apagada. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/users/profile/favorites:
+    get:
+      tags: [Favoritos]
+      summary: Listar os próprios favoritos
+      description: Da receita favoritada por último para a primeira.
+      operationId: listFavorites
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/RecipesPerPage"
+      responses:
+        "200":
+          description: Página de receitas.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecipePage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /api/categories:
+    get:
+      tags: [Receitas]
+      summary: Listar categorias
+      description: As categorias são fixas, em ordem alfabética.
+      operationId: listCategories
+      responses:
+        "200":
+          description: Categorias.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Category" }
+
+  /api/recipes:
+    get:
+      tags: [Receitas]
+      summary: Listar e buscar receitas
+      description: Das mais novas para as mais antigas. A busca ignora acento e maiúscula e procura no nome e na descrição.
+      operationId: listRecipes
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 100 }
+          example: pao de queijo
+        - name: category_id
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: user_id
+          in: query
+          description: Só as receitas desse autor.
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/RecipesPerPage"
+      responses:
+        "200":
+          description: Página de receitas.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecipePage" }
+        "422": { $ref: "#/components/responses/Validation" }
+    post:
+      tags: [Receitas]
+      summary: Criar receita
+      operationId: createRecipe
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecipeInput" }
+      responses:
+        "201":
+          description: Receita criada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Recipe" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /api/recipes/{id}:
+    parameters:
+      - $ref: "#/components/parameters/RecipeID"
+    get:
+      tags: [Receitas]
+      summary: Ver receita
+      operationId: getRecipe
+      responses:
+        "200":
+          description: Receita completa.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Recipe" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Receitas]
+      summary: Trocar a receita inteira
+      description: Troca dados, fotos, ingredientes e passos numa transação. O que não vier deixa de existir.
+      operationId: replaceRecipe
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecipeInput" }
+      responses:
+        "200":
+          description: Receita atualizada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Recipe" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+    patch:
+      tags: [Receitas]
+      summary: Editar dados da receita
+      description: Muda só os campos enviados; fotos, ingredientes e passos têm rotas próprias.
+      operationId: updateRecipe
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecipePatch" }
+      responses:
+        "200":
+          description: Receita atualizada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Recipe" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Receitas]
+      summary: Apagar receita
+      description: Apaga junto fotos, itens, comentários e favoritos.
+      operationId: deleteRecipe
+      security:
+        - bearerAuth: []
+      responses:
+        "204": { description: Receita apagada. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/recipes/{id}/images:
+    parameters:
+      - $ref: "#/components/parameters/RecipeID"
+    post:
+      tags: [Itens da receita]
+      summary: Adicionar foto
+      description: No máximo 10 fotos por receita.
+      operationId: addImage
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ImageInput" }
+      responses:
+        "201":
+          description: Foto adicionada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Image" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /api/recipes/{id}/images/{imageID}:
+    parameters:
+      - $ref: "#/components/parameters/RecipeID"
+      - name: imageID
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    patch:
+      tags: [Itens da receita]
+      summary: Trocar foto
+      operationId: updateImage
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ImageInput" }
+      responses:
+        "200":
+          description: Foto trocada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Image" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Itens da receita]
+      summary: Remover foto
+      operationId: deleteImage
+      security:
+        - bearerAuth: []
+      responses:
+        "204": { description: Foto removida. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/recipes/{id}/ingredients:
+    parameters:
+      - $ref: "#/components/parameters/RecipeID"
+    post:
+      tags: [Itens da receita]
+      summary: Adicionar ingrediente
+      description: O nome é guardado em minúsculas; o mesmo ingrediente escrito de outro jeito vira o mesmo registro.
+      operationId: addIngredient
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IngredientInput" }
+      responses:
+        "201":
+          description: Ingrediente adicionado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ingredient" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /api/recipes/{id}/ingredients/{ingredientID}:
+    parameters:
+      - $ref: "#/components/parameters/RecipeID"
+      - name: ingredientID
+        in: path
+        required: true
+        description: O `id` do ingrediente dentro da receita.
+        schema: { type: integer, minimum: 1 }
+    delete:
+      tags: [Itens da receita]
+      summary: Remover ingrediente
+      operationId: deleteIngredient
+      security:
+        - bearerAuth: []
+      responses:
+        "204": { description: Ingrediente removido. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/recipes/{id}/preparations:
+    parameters:
+      - $ref: "#/components/parameters/RecipeID"
+    post:
+      tags: [Itens da receita]
+      summary: Adicionar passo do preparo
+      operationId: addPreparation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PreparationInput" }
+      responses:
+        "201":
+          description: Passo adicionado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Preparation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /api/recipes/{id}/preparations/{prepID}:
+    parameters:
+      - $ref: "#/components/parameters/RecipeID"
+      - name: prepID
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    patch:
+      tags: [Itens da receita]
+      summary: Editar passo do preparo
+      operationId: updatePreparation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PreparationInput" }
+      responses:
+        "200":
+          description: Passo atualizado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Preparation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Itens da receita]
+      summary: Remover passo do preparo
+      operationId: deletePreparation
+      security:
+        - bearerAuth: []
+      responses:
+        "204": { description: Passo removido. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/recipes/{id}/comments:
+    parameters:
+      - $ref: "#/components/parameters/RecipeID"
+    get:
+      tags: [Comentários]
+      summary: Listar comentários da receita
+      description: Dos mais novos para os mais antigos.
+      operationId: listComments
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - name: per_page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+      responses:
+        "200":
+          description: Página de comentários.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommentPage" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+    post:
+      tags: [Comentários]
+      summary: Comentar
+      operationId: createComment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CommentInput" }
+      responses:
+        "201":
+          description: Comentário criado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Comment" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /api/comments/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    patch:
+      tags: [Comentários]
+      summary: Editar comentário
+      description: Só o autor edita.
+      operationId: updateComment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CommentInput" }
+      responses:
+        "200":
+          description: Comentário atualizado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Comment" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Comentários]
+      summary: Apagar comentário
+      description: O autor apaga o próprio comentário; admin apaga qualquer um.
+      operationId: deleteComment
+      security:
+        - bearerAuth: []
+      responses:
+        "204": { description: Comentário apagado. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/favorites/{recipeID}:
+    parameters:
+      - name: recipeID
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Favoritos]
+      summary: Ver se a receita está nos favoritos
+      operationId: favoriteStatus
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Situação do favorito.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FavoriteStatus" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Favoritos]
+      summary: Favoritar
+      operationId: addFavorite
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Receita favoritada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FavoriteStatus" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: A receita já está nos favoritos.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    delete:
+      tags: [Favoritos]
+      summary: Desfavoritar
+      operationId: removeFavorite
+      security:
+        - bearerAuth: []
+      responses:
+        "204": { description: Receita removida dos favoritos. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token devolvido pelo login e pela renovação (vale 15 minutos).
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: panda_refresh
+      description: Refresh token gravado pelo login (HttpOnly, SameSite=Strict, Path=/api/auth).
+
+  headers:
+    SessionCookies:
+      description: "`panda_refresh` (o refresh token) e `panda_session` (vale 1; só avisa o front que existe sessão)."
+      schema: { type: string }
+
+  parameters:
+    RecipeID:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 10000, default: 1 }
+    RecipesPerPage:
+      name: per_page
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 50, default: 12 }
+
+  responses:
+    Unauthorized:
+      description: Sem access token, ou token inválido ou vencido.
+      headers:
+        WWW-Authenticate:
+          schema: { type: string, example: Bearer realm="panda-cooking" }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: A receita ou o comentário é de outra pessoa.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    CrossOrigin:
+      description: Requisição de navegador vinda de outro site (proteção contra CSRF).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Não encontrado.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Validation:
+      description: Dados inválidos; `fields` tem a mensagem de cada campo.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ValidationError" }
+          example:
+            error: dados inválidos
+            fields:
+              name: use pelo menos 3 caracteres
+              ingredients[0].amount: campo obrigatório
+    TooManyRequests:
+      description: Passou do limite de requisições.
+      headers:
+        Retry-After:
+          description: Segundos até poder tentar de novo.
+          schema: { type: integer }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string, example: receita não encontrada }
+
+    ValidationError:
+      type: object
+      required: [error, fields]
+      properties:
+        error: { type: string, example: dados inválidos }
+        fields:
+          type: object
+          additionalProperties: { type: string }
+
+    LoginInput:
+      type: object
+      required: [email, password]
+      additionalProperties: false
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, maxLength: 128 }
+
+    SignupInput:
+      type: object
+      required: [name, email, password]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 2, maxLength: 80 }
+        email: { type: string, format: email, maxLength: 254 }
+        password:
+          type: string
+          minLength: 10
+          maxLength: 128
+          description: Até 72 bytes; senhas comuns e iguais ao e-mail são recusadas.
+        image_profile: { $ref: "#/components/schemas/HTTPSURL" }
+
+    ProfilePatch:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 2, maxLength: 80 }
+        image_profile:
+          description: Vazio remove a foto.
+          oneOf:
+            - $ref: "#/components/schemas/HTTPSURL"
+            - { type: string, maxLength: 0 }
+
+    HTTPSURL:
+      type: string
+      format: uri
+      pattern: "^https://"
+      maxLength: 2048
+
+    AuthResult:
+      type: object
+      required: [access_token, token_type, expires_in, user]
+      properties:
+        access_token: { type: string }
+        token_type: { type: string, const: Bearer }
+        expires_in: { type: integer, description: Validade do access token em segundos., example: 900 }
+        user: { $ref: "#/components/schemas/User" }
+
+    User:
+      type: object
+      required: [id, name, email, image_profile, is_adm, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        image_profile: { type: string, description: Link da foto; vazio quando não tem. }
+        is_adm: { type: boolean }
+        created_at: { type: string, format: date-time }
+
+    Author:
+      type: object
+      description: O que é público de quem escreveu a receita ou o comentário.
+      required: [id, name, image_profile]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        image_profile: { type: string }
+
+    Category:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer }
+        name: { type: string, example: Pães e Bolos }
+
+    RecipeSummary:
+      type: object
+      required: [id, name, description, time, portions, image_url, category, author, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        time: { type: string, example: 40 minutos }
+        portions: { type: integer }
+        image_url: { type: string, description: Primeira foto; vazio quando não tem. }
+        category: { $ref: "#/components/schemas/Category" }
+        author: { $ref: "#/components/schemas/Author" }
+        created_at: { type: string, format: date-time }
+
+    Recipe:
+      type: object
+      required: [id, name, description, time, portions, category, author, images, ingredients, preparations, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        time: { type: string }
+        portions: { type: integer }
+        category: { $ref: "#/components/schemas/Category" }
+        author: { $ref: "#/components/schemas/Author" }
+        images:
+          type: array
+          items: { $ref: "#/components/schemas/Image" }
+        ingredients:
+          type: array
+          items: { $ref: "#/components/schemas/Ingredient" }
+        preparations:
+          type: array
+          items: { $ref: "#/components/schemas/Preparation" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    RecipeInput:
+      type: object
+      required: [name, description, time, portions, category_id, ingredients, preparations]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 3, maxLength: 120 }
+        description: { type: string, minLength: 10, maxLength: 2000 }
+        time: { type: string, maxLength: 50, example: 1h 30min }
+        portions: { type: integer, minimum: 1, maximum: 100 }
+        category_id: { type: integer, minimum: 1 }
+        images:
+          type: array
+          maxItems: 10
+          items: { $ref: "#/components/schemas/ImageInput" }
+        ingredients:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { $ref: "#/components/schemas/IngredientInput" }
+        preparations:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { $ref: "#/components/schemas/PreparationInput" }
+
+    RecipePatch:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 3, maxLength: 120 }
+        description: { type: string, minLength: 10, maxLength: 2000 }
+        time: { type: string, minLength: 1, maxLength: 50 }
+        portions: { type: integer, minimum: 1, maximum: 100 }
+        category_id: { type: integer, minimum: 1 }
+
+    Image:
+      type: object
+      required: [id, url]
+      properties:
+        id: { type: integer }
+        url: { type: string }
+
+    ImageInput:
+      type: object
+      required: [url]
+      additionalProperties: false
+      properties:
+        url: { $ref: "#/components/schemas/HTTPSURL" }
+
+    Ingredient:
+      type: object
+      required: [id, name, amount]
+      properties:
+        id: { type: integer, description: Id do ingrediente dentro da receita. }
+        name: { type: string, example: farinha de trigo }
+        amount: { type: string, example: 2 xícaras }
+
+    IngredientInput:
+      type: object
+      required: [name, amount]
+      additionalProperties: false
+      properties:
+        name: { type: string, maxLength: 80 }
+        amount: { type: string, maxLength: 60 }
+
+    Preparation:
+      type: object
+      required: [id, description]
+      properties:
+        id: { type: integer }
+        description: { type: string }
+
+    PreparationInput:
+      type: object
+      required: [description]
+      additionalProperties: false
+      properties:
+        description: { type: string, maxLength: 1000 }
+
+    Comment:
+      type: object
+      required: [id, description, recipe_id, user, created_at, updated_at]
+      properties:
+        id: { type: integer }
+        description: { type: string }
+        recipe_id: { type: string, format: uuid }
+        user: { $ref: "#/components/schemas/Author" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CommentInput:
+      type: object
+      required: [description]
+      additionalProperties: false
+      properties:
+        description: { type: string, maxLength: 1000 }
+
+    FavoriteStatus:
+      type: object
+      required: [favorite]
+      properties:
+        favorite: { type: boolean }
+
+    PageInfo:
+      type: object
+      required: [page, per_page, total, total_pages]
+      properties:
+        page: { type: integer }
+        per_page: { type: integer }
+        total: { type: integer }
+        total_pages: { type: integer }
+
+    RecipePage:
+      allOf:
+        - $ref: "#/components/schemas/PageInfo"
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/RecipeSummary" }
+
+    CommentPage:
+      allOf:
+        - $ref: "#/components/schemas/PageInfo"
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/Comment" }

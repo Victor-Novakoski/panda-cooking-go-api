@@ -33,6 +33,10 @@ services:
       DB_NAME: ${DB_NAME:-panda_cooking}
       SECRET_KEY: ${SECRET_KEY:?copie o .env.example para .env}
       SEED_DEMO: "true"
+      CORS_ORIGINS: http://localhost:3000
+      # o front (outro container) repassa o IP de quem acessa; em
+      # desenvolvimento a API confia nas redes internas do Docker
+      TRUSTED_PROXIES: 172.16.0.0/12,192.168.0.0/16,10.0.0.0/8
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
@@ -48,9 +52,9 @@ services:
     working_dir: /app
     command: sh -c "npm ci && npm run dev"
     environment:
-      # o navegador chama a API pela porta publicada; o servidor do Next, de dentro da rede do compose
-      NEXT_PUBLIC_API_URL: http://localhost:8080
-      API_INTERNAL_URL: http://api:8080
+      # o navegador só fala com o front; o servidor do Next repassa /api para a
+      # API pela rede do compose
+      API_URL: http://api:8080
       WATCHPACK_POLLING: "true"
       NEXT_TELEMETRY_DISABLED: "1"
     ports:
