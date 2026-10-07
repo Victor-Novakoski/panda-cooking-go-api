@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -157,6 +158,39 @@ func TestAuthService_LoginLockout(t *testing.T) {
 	assert.ErrorIs(t, login(user.Email, "panelas-de-barro"), service.ErrTooManyAttempts)
 	// o bloqueio é por e-mail
 	assert.ErrorIs(t, login("outra@email.com", "qualquer-senha"), service.ErrInvalidCredentials)
+}
+
+func TestAuthService_LoginLockoutSimultaneo(t *testing.T) {
+	user := userWithPassword(t, "panelas-de-barro")
+	users := &mocks.UserRepoMock{FindByEmailFn: func(context.Context, string) (*model.User, error) { return user, nil }}
+	auth := newAuth(users, &mocks.SessionRepoMock{}, discardLog())
+
+	// Tentativas ao mesmo tempo não passam do limite: a contagem vem antes
+	// do bcrypt, não depois.
+	const attempts = 20
+	errs := make(chan error, attempts)
+	var wg sync.WaitGroup
+	for range attempts {
+		wg.Go(func() {
+			_, err := auth.Login(ctx, service.LoginInput{Email: user.Email, Password: "errada"})
+			errs <- err
+		})
+	}
+	wg.Wait()
+	close(errs)
+
+	guesses := 0
+	for err := range errs {
+		if errors.Is(err, service.ErrInvalidCredentials) {
+			guesses++
+			continue
+		}
+		require.ErrorIs(t, err, service.ErrTooManyAttempts)
+		var appErr *service.Error
+		require.ErrorAs(t, err, &appErr)
+		assert.Positive(t, appErr.RetryAfter, "o 429 diz quanto esperar")
+	}
+	assert.Equal(t, service.MaxLoginFailures, guesses)
 }
 
 func TestAuthService_LoginLogDoesNotExposeEmail(t *testing.T) {

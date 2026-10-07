@@ -14,7 +14,13 @@ info:
     cada uso; usar de novo um token já trocado derruba a sessão.
 
     **Erros.** Todo erro tem o formato `{"error": "mensagem"}`. Erro de
-    validação (422) traz também `fields`, com a mensagem de cada campo.
+    validação (422) traz também `fields`, com a mensagem de cada campo,
+    quando o erro é de um campo. Além das respostas listadas em cada rota,
+    qualquer rota pode responder 400 (JSON malformado ou com campo
+    desconhecido), 413 (corpo maior que 1 MB), 403 (requisição que muda
+    dados vinda de outra origem), 429 (limite por IP), 503 (passou de 10
+    segundos) e 500. Rota com login responde 404 "usuário não encontrado"
+    se a conta foi apagada enquanto o access token ainda valia.
 
     **Limites.** Por IP: 300 requisições por minuto em /api, 10 tentativas de
     login por minuto, 30 renovações por minuto e 10 cadastros por hora.
@@ -758,7 +764,7 @@ components:
 
     ValidationError:
       type: object
-      required: [error, fields]
+      required: [error]
       properties:
         error: { type: string, example: dados inválidos }
         fields:

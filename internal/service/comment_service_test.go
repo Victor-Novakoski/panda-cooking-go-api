@@ -18,6 +18,15 @@ func recipeExists(exists bool) *mocks.RecipeRepoMock {
 	return &mocks.RecipeRepoMock{ExistsFn: func(context.Context, string) (bool, error) { return exists, nil }}
 }
 
+// recipeDeletedMidway existe na primeira conferência e some na seguinte.
+func recipeDeletedMidway() *mocks.RecipeRepoMock {
+	calls := 0
+	return &mocks.RecipeRepoMock{ExistsFn: func(context.Context, string) (bool, error) {
+		calls++
+		return calls == 1, nil
+	}}
+}
+
 func storedComment() *model.Comment {
 	return &model.Comment{
 		ID: 5, Description: "Ficou ótima!", UserID: userID, RecipeID: recipeID,
@@ -55,9 +64,17 @@ func TestCommentService_Create(t *testing.T) {
 	t.Run("receita apagada no meio do caminho é 404", func(t *testing.T) {
 		repo := &mocks.CommentRepoMock{CreateFn: func(context.Context, *model.Comment) error { return gorm.ErrForeignKeyViolated }}
 
-		_, err := service.NewCommentService(repo, recipeExists(true)).Create(ctx, userID, recipeID, service.CommentInput{Description: "Oi"})
+		_, err := service.NewCommentService(repo, recipeDeletedMidway()).Create(ctx, userID, recipeID, service.CommentInput{Description: "Oi"})
 
 		assert.ErrorIs(t, err, service.ErrRecipeNotFound)
+	})
+
+	t.Run("conta apagada com o access token ainda válido é usuário não encontrado", func(t *testing.T) {
+		repo := &mocks.CommentRepoMock{CreateFn: func(context.Context, *model.Comment) error { return gorm.ErrForeignKeyViolated }}
+
+		_, err := service.NewCommentService(repo, recipeExists(true)).Create(ctx, userID, recipeID, service.CommentInput{Description: "Oi"})
+
+		assert.ErrorIs(t, err, service.ErrUserNotFound)
 	})
 }
 

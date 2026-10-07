@@ -47,7 +47,7 @@ type RecipeInput struct {
 	Description  string                  `json:"description" binding:"required,min=10,max=2000"`
 	Time         string                  `json:"time" binding:"required,max=50"`
 	Portions     int                     `json:"portions" binding:"required,min=1,max=100"`
-	CategoryID   uint                    `json:"category_id" binding:"required"`
+	CategoryID   uint                    `json:"category_id" binding:"required,max=9223372036854775807"`
 	Images       []ImageRecipeInput      `json:"images" binding:"max=10,dive"`
 	Ingredients  []IngredientRecipeInput `json:"ingredients" binding:"required,min=1,max=50,dive"`
 	Preparations []PreparationInput      `json:"preparations" binding:"required,min=1,max=50,dive"`
@@ -74,7 +74,7 @@ type UpdateRecipeInput struct {
 	Description *string `json:"description" binding:"omitempty,min=10,max=2000"`
 	Time        *string `json:"time" binding:"omitempty,min=1,max=50"`
 	Portions    *int    `json:"portions" binding:"omitempty,min=1,max=100"`
-	CategoryID  *uint   `json:"category_id" binding:"omitempty,min=1"`
+	CategoryID  *uint   `json:"category_id" binding:"omitempty,min=1,max=9223372036854775807"`
 }
 
 func (in *UpdateRecipeInput) Normalize() {
@@ -114,7 +114,7 @@ func (in *CommentInput) Normalize() { in.Description = strings.TrimSpace(in.Desc
 // ListRecipesQuery são os filtros da listagem de receitas (query string).
 type ListRecipesQuery struct {
 	Search     string `form:"search" binding:"max=100"`
-	CategoryID uint   `form:"category_id"`
+	CategoryID uint   `form:"category_id" binding:"max=9223372036854775807"`
 	UserID     string `form:"user_id" binding:"omitempty,uuid"`
 	Page       int    `form:"page" binding:"omitempty,min=1,max=10000"`
 	PerPage    int    `form:"per_page" binding:"omitempty,min=1,max=50"`

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"math"
 	"net/http"
 	"strconv"
 
@@ -51,6 +52,9 @@ func respondError(c *gin.Context, err error) {
 			body := ErrorBody{Error: appErr.Message}
 			if appErr.Field != "" {
 				body.Fields = map[string]string{appErr.Field: appErr.Message}
+			}
+			if appErr.RetryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(int(math.Ceil(appErr.RetryAfter.Seconds()))))
 			}
 			c.AbortWithStatusJSON(status, body)
 			return
@@ -155,7 +159,8 @@ func validate(c *gin.Context, dst any) bool {
 // idParam lê um id numérico da rota. Id que não é número responde 404,
 // como um id que não existe.
 func idParam(c *gin.Context, name string, notFound error) (uint, bool) {
-	v, err := strconv.ParseUint(c.Param(name), 10, 64)
+	// 63 bits: o maior valor que cabe no BIGINT do Postgres
+	v, err := strconv.ParseUint(c.Param(name), 10, 63)
 	if err != nil || v == 0 {
 		respondError(c, notFound)
 		return 0, false

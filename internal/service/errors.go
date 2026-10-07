@@ -1,5 +1,7 @@
 package service
 
+import "time"
+
 // Kind diz que tipo de falha um erro do service representa.
 // O handler usa o tipo para escolher o status HTTP.
 type Kind int
@@ -17,13 +19,23 @@ const (
 // cliente; qualquer outro erro é tratado como interno e não sai no corpo.
 // Field, quando preenchido, é o campo do corpo da requisição que causou o
 // erro, para o front mostrar a mensagem ao lado dele.
+//
+// RetryAfter, quando maior que zero, vai no cabeçalho Retry-After do 429.
 type Error struct {
-	Kind    Kind
-	Message string
-	Field   string
+	Kind       Kind
+	Message    string
+	Field      string
+	RetryAfter time.Duration
 }
 
 func (e *Error) Error() string { return e.Message }
+
+// Is faz errors.Is(err, ErrX) valer também para uma cópia de ErrX com
+// detalhe a mais (como o RetryAfter).
+func (e *Error) Is(target error) bool {
+	t, ok := target.(*Error)
+	return ok && t.Kind == e.Kind && t.Message == e.Message && t.Field == e.Field
+}
 
 func newError(kind Kind, msg string) *Error { return &Error{Kind: kind, Message: msg} }
 

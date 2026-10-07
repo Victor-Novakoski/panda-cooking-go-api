@@ -80,9 +80,14 @@ func NewAuthService(users repository.UserRepo, sessions repository.SessionRepo, 
 // quem tem conta.
 func (s *AuthService) Login(ctx context.Context, input LoginInput) (*AuthResult, error) {
 	email := input.Email
-	if blocked, _ := s.loginFailures.Blocked(email); blocked {
+	// A tentativa conta antes do bcrypt: conferir e contar depois deixaria
+	// passar várias tentativas simultâneas com o mesmo e-mail. O login certo
+	// zera o contador.
+	if ok, wait := s.loginFailures.Allow(email); !ok {
 		s.log.WarnContext(ctx, "login bloqueado por excesso de tentativas", "email_hash", s.emailHash(email))
-		return nil, ErrTooManyAttempts
+		blocked := *ErrTooManyAttempts
+		blocked.RetryAfter = wait
+		return nil, &blocked
 	}
 
 	user, err := s.users.FindByEmail(ctx, email)
@@ -95,7 +100,6 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput) (*AuthResult,
 		hash = []byte(user.PasswordHash)
 	}
 	if bcrypt.CompareHashAndPassword(hash, []byte(input.Password)) != nil || user == nil {
-		s.loginFailures.Allow(email)
 		s.log.WarnContext(ctx, "login falhou", "email_hash", s.emailHash(email), "conta_existe", user != nil)
 		return nil, ErrInvalidCredentials
 	}

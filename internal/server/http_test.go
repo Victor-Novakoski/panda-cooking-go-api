@@ -361,6 +361,23 @@ func TestComments(t *testing.T) {
 		assert.Equal(t, http.StatusForbidden, e.as(otherID, false, http.MethodDelete, "/api/comments/3", nil).Code)
 		assert.Equal(t, http.StatusNoContent, e.as(otherID, true, http.MethodDelete, "/api/comments/3", nil).Code)
 	})
+
+	t.Run("id maior que o BIGINT do banco é 404, não 500", func(t *testing.T) {
+		e := newEnv(t)
+
+		w := e.as(userID, false, http.MethodDelete, "/api/comments/18446744073709551615", nil)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+}
+
+func TestCategoryIDTooLarge(t *testing.T) {
+	e := newEnv(t)
+
+	w := e.do(http.MethodGet, "/api/recipes?category_id=18446744073709551615", nil)
+
+	require.Equal(t, http.StatusUnprocessableEntity, w.Code, w.Body.String())
+	assert.Contains(t, decode[errorBody](t, w).Fields, "category_id")
 }
 
 func TestFavorites(t *testing.T) {

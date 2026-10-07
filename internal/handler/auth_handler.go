@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -56,7 +57,11 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 
 	res, err := h.service.Refresh(c.Request.Context(), refresh)
 	if err != nil {
-		h.clearSessionCookies(c)
+		// Só a sessão que acabou apaga os cookies. Banco fora do ar ou prazo
+		// estourado desfazem a troca, e a sessão continua valendo.
+		if errors.Is(err, service.ErrSessionInvalid) {
+			h.clearSessionCookies(c)
+		}
 		respondError(c, err)
 		return
 	}

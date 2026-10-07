@@ -47,7 +47,7 @@ func (s *FavoriteService) Add(ctx context.Context, userID, recipeID string) (*Fa
 	case errors.Is(err, gorm.ErrDuplicatedKey):
 		return nil, ErrAlreadyFavorite
 	case errors.Is(err, gorm.ErrForeignKeyViolated):
-		return nil, ErrRecipeNotFound
+		return nil, missingRecipeOrUser(s.checkRecipe(ctx, recipeID))
 	case err != nil:
 		return nil, err
 	}
@@ -85,4 +85,14 @@ func (s *FavoriteService) checkRecipe(ctx context.Context, recipeID string) erro
 		return ErrRecipeNotFound
 	}
 	return nil
+}
+
+// missingRecipeOrUser decide o erro de uma chave estrangeira violada ao gravar
+// algo de um usuário numa receita: se a receita ainda existe (recipeErr nil),
+// quem sumiu foi a conta.
+func missingRecipeOrUser(recipeErr error) error {
+	if recipeErr == nil {
+		return ErrUserNotFound
+	}
+	return recipeErr
 }

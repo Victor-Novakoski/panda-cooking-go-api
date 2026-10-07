@@ -89,6 +89,13 @@ func (r *SessionRepository) Rotate(ctx context.Context, tokenHash string, next *
 			}
 		}
 
+		// Tokens vencidos da sessão já não servem nem para detectar reúso
+		// (vencido é recusado antes): saem para a tabela não crescer sem fim.
+		if err := tx.Where("session_id = ? AND expires_at <= ?", session.ID, now).
+			Delete(&model.RefreshToken{}).Error; err != nil {
+			return err
+		}
+
 		next.SessionID = session.ID
 		if next.ExpiresAt.After(session.ExpiresAt) {
 			next.ExpiresAt = session.ExpiresAt

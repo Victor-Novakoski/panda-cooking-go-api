@@ -38,10 +38,13 @@ func TestFavoriteService_Add(t *testing.T) {
 		name      string
 		createErr error
 		wantErr   error
+
+		deletedMidway bool
 	}{
 		{name: "favorita"},
 		{name: "favorito repetido é 409", createErr: gorm.ErrDuplicatedKey, wantErr: service.ErrAlreadyFavorite},
-		{name: "receita apagada no meio do caminho é 404", createErr: gorm.ErrForeignKeyViolated, wantErr: service.ErrRecipeNotFound},
+		{name: "receita apagada no meio do caminho é 404", createErr: gorm.ErrForeignKeyViolated, deletedMidway: true, wantErr: service.ErrRecipeNotFound},
+		{name: "conta apagada com o access token ainda válido", createErr: gorm.ErrForeignKeyViolated, wantErr: service.ErrUserNotFound},
 	}
 
 	for _, tt := range tests {
@@ -51,7 +54,11 @@ func TestFavoriteService_Add(t *testing.T) {
 				return tt.createErr
 			}}
 
-			status, err := service.NewFavoriteService(repo, recipeExists(true)).Add(ctx, userID, recipeID)
+			recipes := recipeExists(true)
+			if tt.deletedMidway {
+				recipes = recipeDeletedMidway()
+			}
+			status, err := service.NewFavoriteService(repo, recipes).Add(ctx, userID, recipeID)
 
 			if tt.wantErr != nil {
 				assert.ErrorIs(t, err, tt.wantErr)

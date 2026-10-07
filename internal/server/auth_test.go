@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"testing"
@@ -153,6 +154,19 @@ func TestRefresh(t *testing.T) {
 			require.NotNil(t, c, name)
 			assert.Negative(t, c.MaxAge, name)
 		}
+	})
+
+	t.Run("falha do servidor não apaga os cookies: a sessão continua valendo", func(t *testing.T) {
+		e := newEnv(t)
+		e.sessions.RotateFn = func(context.Context, string, *model.RefreshToken, time.Time, time.Duration) (repository.RotateResult, error) {
+			return repository.RotateResult{}, errors.New("banco fora do ar")
+		}
+
+		w := e.serve(refreshRequest("token-atual"))
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+		assert.Nil(t, cookie(w, handler.RefreshCookie))
+		assert.Nil(t, cookie(w, handler.SessionCookie))
 	})
 
 	t.Run("sem cookie é 401", func(t *testing.T) {

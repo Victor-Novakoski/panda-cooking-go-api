@@ -26,9 +26,10 @@ func (s *CommentService) Create(ctx context.Context, userID, recipeID string, in
 
 	comment := &model.Comment{Description: input.Description, RecipeID: recipeID, UserID: userID}
 	if err := s.repo.Create(ctx, comment); err != nil {
-		// receita apagada entre a conferência e a gravação
+		// receita apagada entre a conferência e a gravação, ou conta apagada
+		// com o access token ainda válido
 		if errors.Is(err, gorm.ErrForeignKeyViolated) {
-			return nil, ErrRecipeNotFound
+			return nil, missingRecipeOrUser(s.checkRecipe(ctx, recipeID))
 		}
 		return nil, err
 	}
