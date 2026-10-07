@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -237,7 +238,7 @@ func TestAuthMiddleware(t *testing.T) {
 		{name: "esquema errado", header: "Basic dXNlcjpzZW5oYQ=="},
 		{name: "token inválido", header: "Bearer abc.def.ghi"},
 		{name: "token vencido", header: "Bearer " + expired},
-		{name: "alg none", header: "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiI2ZjFjMmI4ZS0xZDdhLTRjNTUtOWEwZS0yZjRiN2M5ZDFlMzAiLCJpc3MiOiJwYW5kYS1jb29raW5nLWFwaSJ9."},
+		{name: "alg none", header: "Bearer " + unsignedToken(`{"alg":"none","typ":"JWT"}`, `{"sub":"`+userID+`","iss":"panda-cooking-api"}`)},
 	}
 
 	for _, tt := range tests {
@@ -253,4 +254,10 @@ func TestAuthMiddleware(t *testing.T) {
 			assert.Equal(t, `Bearer realm="panda-cooking"`, w.Header().Get("WWW-Authenticate"))
 		})
 	}
+}
+
+// unsignedToken monta um JWT sem assinatura a partir do header e das claims.
+func unsignedToken(header, claims string) string {
+	enc := base64.RawURLEncoding
+	return enc.EncodeToString([]byte(header)) + "." + enc.EncodeToString([]byte(claims)) + "."
 }
