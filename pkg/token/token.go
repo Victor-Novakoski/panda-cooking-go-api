@@ -1,3 +1,4 @@
+// Package token gera e valida o access token (JWT HS256).
 package token
 
 import (
@@ -7,41 +8,45 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// Issuer identifica os tokens desta API; token de outro emissor é recusado.
+const Issuer = "panda-cooking-api"
+
+// Claims: Subject é o id do usuário; IsAdm vai no token para o middleware
+// não consultar o banco a cada requisição.
 type Claims struct {
 	jwt.RegisteredClaims
-	UserID string `json:"user_id"`
-	IsAdm  bool   `json:"is_adm"`
+	IsAdm bool `json:"adm"`
 }
 
-func Generate(userID string, isAdm bool, secretKey string) (string, error) {
+func Generate(userID string, isAdm bool, secretKey string, now time.Time, ttl time.Duration) (string, error) {
 	claims := Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    Issuer,
+			Subject:   userID,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
 		},
-		UserID: userID,
-		IsAdm:  isAdm,
+		IsAdm: isAdm,
 	}
-
-	t := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return t.SignedString([]byte(secretKey))
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(secretKey))
 }
 
+// Parse valida assinatura, algoritmo (só HS256: nada de "none" ou troca por
+// RS256), emissor e validade.
 func Parse(tokenStr, secretKey string) (*Claims, error) {
-	t, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(t *jwt.Token) (any, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.New("método de assinatura inválido")
-		}
-		return []byte(secretKey), nil
-	})
+	claims := &Claims{}
+	_, err := jwt.ParseWithClaims(tokenStr, claims,
+		func(*jwt.Token) (any, error) { return []byte(secretKey), nil },
+		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
+		jwt.WithIssuer(Issuer),
+		jwt.WithExpirationRequired(),
+		jwt.WithLeeway(5*time.Second),
+	)
 	if err != nil {
 		return nil, err
 	}
-
-	claims, ok := t.Claims.(*Claims)
-	if !ok || !t.Valid {
-		return nil, errors.New("token inválido")
+	if claims.Subject == "" {
+		return nil, errors.New("token sem usuário")
 	}
-
 	return claims, nil
 }

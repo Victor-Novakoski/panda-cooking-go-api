@@ -1,178 +1,103 @@
 package service
 
 import (
+	"context"
 	"errors"
+	"fmt"
 
 	"panda-cooking-go-api/internal/model"
 	"panda-cooking-go-api/internal/repository"
-	"panda-cooking-go-api/pkg/token"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
+// UserService cuida do cadastro e do perfil. Login e sessão ficam no
+// AuthService.
 type UserService struct {
-	repo      repository.UserRepo
-	secretKey string
+	repo repository.UserRepo
 }
 
-func NewUserService(repo repository.UserRepo, secretKey string) *UserService {
-	return &UserService{repo: repo, secretKey: secretKey}
+func NewUserService(repo repository.UserRepo) *UserService {
+	return &UserService{repo: repo}
 }
 
-// --- DTOs ---
+func (s *UserService) Create(ctx context.Context, input CreateUserInput) (*UserResponse, error) {
+	if err := checkPassword(input.Password, input.Email); err != nil {
+		return nil, err
+	}
 
-type CreateUserInput struct {
-	Name         string `json:"name" binding:"required"`
-	Email        string `json:"email" binding:"required,email"`
-	Password     string `json:"password" binding:"required,min=6"`
-	ImageProfile string `json:"image_profile"`
-}
-
-type UpdateUserInput struct {
-	Name         string `json:"name"`
-	ImageProfile string `json:"image_profile"`
-}
-
-type UserResponse struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	Email        string `json:"email"`
-	ImageProfile string `json:"image_profile"`
-	IsAdm        bool   `json:"is_adm"`
-}
-
-type LoginInput struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
-}
-
-type LoginResponse struct {
-	Token string `json:"token"`
-}
-
-// --- Métodos ---
-
-func (s *UserService) Create(input CreateUserInput) (*UserResponse, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("gerar hash da senha: %w", err)
 	}
 
 	user := &model.User{
 		Name:         input.Name,
 		Email:        input.Email,
-		Password:     string(hash),
+		PasswordHash: string(hash),
 		ImageProfile: input.ImageProfile,
 	}
-
-	if err := s.repo.Create(user); err != nil {
-		return nil, err
-	}
-
-	return toUserResponse(user), nil
-}
-
-func (s *UserService) Login(input LoginInput) (*LoginResponse, error) {
-	user, err := s.repo.FindByEmail(input.Email)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("email ou senha inválidos")
+	if err := s.repo.Create(ctx, user); err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return nil, ErrEmailTaken
 		}
 		return nil, err
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
-		return nil, errors.New("email ou senha inválidos")
-	}
-
-	t, err := token.Generate(user.ID, user.IsAdm, s.secretKey)
-	if err != nil {
-		return nil, err
-	}
-
-	return &LoginResponse{Token: t}, nil
+	resp := toUserResponse(user)
+	return &resp, nil
 }
 
-func (s *UserService) GetProfile(userID string) (*UserResponse, error) {
-	user, err := s.repo.FindByID(userID)
+func (s *UserService) GetProfile(ctx context.Context, userID string) (*UserResponse, error) {
+	user, err := s.find(ctx, userID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("usuário não encontrado")
-		}
 		return nil, err
 	}
-	return toUserResponse(user), nil
+	resp := toUserResponse(user)
+	return &resp, nil
 }
 
-func (s *UserService) Update(userID string, input UpdateUserInput) (*UserResponse, error) {
-	user, err := s.repo.FindByID(userID)
+func (s *UserService) Update(ctx context.Context, userID string, input UpdateUserInput) (*UserResponse, error) {
+	user, err := s.find(ctx, userID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("usuário não encontrado")
+		return nil, err
+	}
+
+	if input.Name != nil {
+		if *input.Name == "" {
+			return nil, ErrEmptyName
 		}
+		user.Name = *input.Name
+	}
+	if input.ImageProfile != nil {
+		user.ImageProfile = *input.ImageProfile
+	}
+
+	if err := s.repo.Update(ctx, user); err != nil {
 		return nil, err
 	}
 
-	if input.Name != "" {
-		user.Name = input.Name
-	}
-	if input.ImageProfile != "" {
-		user.ImageProfile = input.ImageProfile
-	}
-
-	if err := s.repo.Update(user); err != nil {
-		return nil, err
-	}
-
-	return toUserResponse(user), nil
+	resp := toUserResponse(user)
+	return &resp, nil
 }
 
-func (s *UserService) Delete(userID string) error {
-	_, err := s.repo.FindByID(userID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("usuário não encontrado")
-		}
+// Delete apaga a conta com tudo o que ela criou (receitas, comentários,
+// favoritos e sessões).
+func (s *UserService) Delete(ctx context.Context, userID string) error {
+	if _, err := s.find(ctx, userID); err != nil {
 		return err
 	}
-	return s.repo.Delete(userID)
+	return s.repo.Delete(ctx, userID)
 }
 
-func (s *UserService) GetFavoriteRecipes(userID string) ([]FavoriteRecipeSummary, error) {
-	favorites, err := s.repo.FindFavoriteRecipes(userID)
+func (s *UserService) find(ctx context.Context, userID string) (*model.User, error) {
+	user, err := s.repo.FindByID(ctx, userID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
+		}
 		return nil, err
 	}
-
-	result := make([]FavoriteRecipeSummary, len(favorites))
-	for i, f := range favorites {
-		result[i] = FavoriteRecipeSummary{
-			ID:       f.ID,
-			RecipeID: f.RecipeID,
-			Name:     f.Recipe.Name,
-			Time:     f.Recipe.Time,
-			Portions: f.Recipe.Portions,
-		}
-	}
-	return result, nil
-}
-
-type FavoriteRecipeSummary struct {
-	ID       uint   `json:"id"`
-	RecipeID string `json:"recipe_id"`
-	Name     string `json:"name"`
-	Time     string `json:"time"`
-	Portions int    `json:"portions"`
-}
-
-// toUserResponse converte model → DTO de resposta, nunca expondo a senha
-func toUserResponse(u *model.User) *UserResponse {
-	return &UserResponse{
-		ID:           u.ID,
-		Name:         u.Name,
-		Email:        u.Email,
-		ImageProfile: u.ImageProfile,
-		IsAdm:        u.IsAdm,
-	}
+	return user, nil
 }

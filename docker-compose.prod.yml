@@ -20,6 +20,7 @@ services:
     ports:
       - "${PORT}:${PORT}"
     environment:
+      APP_ENV: production
       PORT: ${PORT}
       DB_HOST: postgres
       DB_PORT: 5432

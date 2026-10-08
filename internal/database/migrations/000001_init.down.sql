@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS favorite_recipes;
+DROP TABLE IF EXISTS comments;
+DROP TABLE IF EXISTS preparations;
+DROP TABLE IF EXISTS ingredient_recipes;
+DROP TABLE IF EXISTS ingredients;
+DROP TABLE IF EXISTS image_recipes;
+DROP TABLE IF EXISTS recipes;
+DROP TABLE IF EXISTS categories;
+DROP TABLE IF EXISTS users;

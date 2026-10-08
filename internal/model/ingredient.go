@@ -1,15 +1,15 @@
 package model
 
 type Ingredient struct {
-	ID   uint   `gorm:"primaryKey;autoIncrement"`
-	Name string `gorm:"uniqueIndex;not null"`
+	ID   uint `gorm:"primaryKey"`
+	Name string
 }
 
 type IngredientRecipe struct {
-	ID           uint   `gorm:"primaryKey;autoIncrement"`
-	Amount       string `gorm:"not null"`
-	RecipeID     string `gorm:"type:uuid;not null"`
-	IngredientID uint   `gorm:"not null"`
+	ID           uint `gorm:"primaryKey"`
+	Amount       string
+	RecipeID     string
+	IngredientID uint
 
 	Ingredient Ingredient `gorm:"foreignKey:IngredientID"`
 }

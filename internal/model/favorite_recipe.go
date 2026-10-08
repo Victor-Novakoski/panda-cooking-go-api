@@ -1,9 +1,10 @@
 package model
 
-type FavoriteRecipe struct {
-	ID       uint   `gorm:"primaryKey;autoIncrement"`
-	UserID   string `gorm:"type:uuid;not null"`
-	RecipeID string `gorm:"type:uuid;not null"`
+import "time"
 
-	Recipe Recipe `gorm:"foreignKey:RecipeID"`
+type FavoriteRecipe struct {
+	ID        uint `gorm:"primaryKey"`
+	UserID    string
+	RecipeID  string
+	CreatedAt time.Time
 }

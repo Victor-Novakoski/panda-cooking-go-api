@@ -2,14 +2,16 @@ root = "."
 tmp_dir = ".air"
 
 [build]
-  pre_cmd = ["docker compose up -d"]
-  post_cmd = ["docker compose down"]
   cmd = "go build -o ./.air/api ./cmd/main.go"
   bin = "./.air/api"
   delay = 1000
-  exclude_dir = [".air", "vendor"]
+  exclude_dir = [".air", "vendor", "docs"]
+  # polling em vez de eventos do sistema de arquivos: no Docker do Windows e do
+  # Mac a pasta montada não avisa o container quando um arquivo muda
+  poll = true
+  poll_interval = 500
   exclude_regex = ["_test.go"]
-  include_ext = ["go", "toml", "env"]
+  include_ext = ["go", "toml", "env", "sql", "yaml"]
   kill_delay = "200ms"
   log = ".air/build-errors.log"
   stop_on_error = true

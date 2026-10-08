@@ -26,7 +26,6 @@ jobs:
         with:
           version: v2.14.0
 
-
   test:
     name: Testes
     runs-on: ubuntu-latest
@@ -45,6 +44,18 @@ jobs:
             go tool cover -func=coverage.out | tail -1
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+  integration:
+    name: Testes de integração
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      # sobe um Postgres 16 com testcontainers e roda migrations, seed e API inteira contra ele
+      - name: API e banco de verdade
+        run: go test -race -count=1 -tags=integration ./internal/integration/...
 
   build:
     name: Imagem Docker

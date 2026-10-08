@@ -12,18 +12,14 @@ type CategoryHandler struct {
 	service *service.CategoryService
 }
 
-func NewCategoryHandler(service *service.CategoryService) *CategoryHandler {
-	return &CategoryHandler{service: service}
+func NewCategoryHandler(svc *service.CategoryService) *CategoryHandler {
+	return &CategoryHandler{service: svc}
 }
 
-func (h *CategoryHandler) RegisterRoutes(r *gin.RouterGroup) {
-	r.GET("", h.getAll)
-}
-
-func (h *CategoryHandler) getAll(c *gin.Context) {
-	categories, err := h.service.GetAll()
+func (h *CategoryHandler) List(c *gin.Context) {
+	categories, err := h.service.GetAll(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, categories)

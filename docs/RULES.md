@@ -13,7 +13,9 @@ Regras que valem para qualquer mudança. Se uma regra atrapalhar, ela é discuti
 - Respeitar as camadas de [ARCHITECTURE.md](ARCHITECTURE.md): handler só fala HTTP; regra de negócio fica no service; banco só no repository.
 - Banco só pelo GORM com parâmetros (`Where("email = ?", email)`). Nunca montar SQL concatenando strings.
 - O service depende das interfaces de `internal/repository/interfaces.go`; mudou a interface, atualiza o mock em `internal/service/mocks`.
-- Services devolvem DTOs, nunca o model direto para o handler (evita vazar campos como `Password`).
+- Services devolvem DTOs, nunca o model direto para o handler (evita vazar campos como `PasswordHash`).
+- Toda função que chega ao banco recebe o `context.Context` da requisição: requisição cancelada ou vencida cancela a consulta.
+- Mudança no banco é uma migration nova em `internal/database/migrations` (`NNNNNN_nome.up.sql` e `.down.sql`). Migration já aplicada não é editada.
 - Erro inesperado sobe com `fmt.Errorf("contexto: %w", err)` e vira 500 com mensagem genérica; o detalhe vai só para o log.
 - Identificadores em inglês, comentários, docs e mensagens de commit em português, como o código atual.
 - `make lint` limpo (golangci-lint, mesma configuração da CI).
@@ -33,13 +35,15 @@ Checklist para toda mudança (detalhes em [SECURITY.md](SECURITY.md)):
 ## 4. Testes
 
 - Regra de negócio nova tem teste no service. Rota nova tem teste do handler (status e corpo).
+- Consulta nova no repository ou fluxo que depende do Postgres (transação, busca, cascata) tem teste de integração em `internal/integration` (`make test-integration`, sobe um Postgres de verdade).
 - Bug corrigido ganha teste que falhava antes da correção.
 - `make test` passando antes de qualquer commit.
 
 ## 5. API
 
 - Seguir as convenções de [DESIGN.md](DESIGN.md) (formato de erro, status, nomes em snake_case).
-- Toda rota nova ou alterada é atualizada na tabela de [ARCHITECTURE.md](ARCHITECTURE.md#rotas) e na coleção do Postman no mesmo commit.
+- Toda rota nova ou alterada é atualizada na tabela de [ARCHITECTURE.md](ARCHITECTURE.md#rotas) e em `api/openapi.yaml` no mesmo commit; um teste falha se uma rota do roteador não estiver no OpenAPI.
+- Limite de campo novo entra em `internal/service/inputs.go` e no `src/lib/limits.ts` do front.
 
 ## 6. Git
 
@@ -47,7 +51,7 @@ Checklist para toda mudança (detalhes em [SECURITY.md](SECURITY.md)):
 - **Fluxo:** criar a branch a partir da `develop` com o mesmo tipo do commit (`feat/busca-de-receitas`, `fix/...`, `docs/...`, `chore/...`, `ci/...`), abrir PR para a `develop` e fazer merge com os checks verdes. A branch é apagada automaticamente depois do merge.
 - **Versão:** quando a `develop` fecha uma etapa, abrir PR da `develop` para a `main`.
 - **Como fazer o merge:** feature → `develop` com squash (um commit por PR); `develop` → `main` sempre com merge commit, nunca rebase ou squash, para as duas branches não divergirem. Para atualizar a branch de feature, `git pull --rebase origin develop`.
-- `main` e `develop` sempre funcionando: sobem com `make setup` e passam nos testes.
+- `main` e `develop` sempre funcionando: sobem com `docker compose up` e passam nos testes.
 - **Conventional Commits:** mensagem no formato `tipo: assunto em português, minúsculo`. Tipos: `feat` (funcionalidade), `fix` (correção), `docs`, `test`, `refactor`, `perf`, `style`, `build`, `ci`, `chore`, `revert`. Escopo opcional, ex.: `feat(api): busca de receitas`. Mudança que quebra compatibilidade leva `!`: `feat!: ...`.
 - O título do PR segue o mesmo formato, porque o squash usa o título como commit; a CI confere.
 - Commits pequenos, um assunto por commit.

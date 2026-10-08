@@ -3,16 +3,12 @@ package model
 import "time"
 
 type User struct {
-	ID           string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	Name         string `gorm:"not null"`
-	Email        string `gorm:"uniqueIndex;not null"`
-	Password     string `gorm:"not null"`
+	ID           string `gorm:"primaryKey;default:gen_random_uuid()"`
+	Name         string
+	Email        string
+	PasswordHash string
 	ImageProfile string
-	IsAdm        bool `gorm:"default:false"`
+	IsAdm        bool
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
-
-	Recipes         []Recipe         `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
-	Comments        []Comment        `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
-	FavoriteRecipes []FavoriteRecipe `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
 }

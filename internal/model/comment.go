@@ -3,10 +3,10 @@ package model
 import "time"
 
 type Comment struct {
-	ID          uint   `gorm:"primaryKey;autoIncrement"`
-	Description string `gorm:"not null"`
-	UserID      string `gorm:"type:uuid;not null"`
-	RecipeID    string `gorm:"type:uuid;not null"`
+	ID          uint `gorm:"primaryKey"`
+	Description string
+	UserID      string
+	RecipeID    string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 

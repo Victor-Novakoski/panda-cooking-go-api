@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"panda-cooking-go-api/internal/middleware"
 	"panda-cooking-go-api/internal/service"
@@ -14,80 +13,67 @@ type CommentHandler struct {
 	service *service.CommentService
 }
 
-func NewCommentHandler(service *service.CommentService) *CommentHandler {
-	return &CommentHandler{service: service}
+func NewCommentHandler(svc *service.CommentService) *CommentHandler {
+	return &CommentHandler{service: svc}
 }
 
-func (h *CommentHandler) RegisterRoutes(r *gin.RouterGroup, authMiddleware gin.HandlerFunc) {
-	r.POST("", authMiddleware, h.create)
-	r.GET("", h.getAll)
-	r.PATCH("/:id", authMiddleware, h.update)
-	r.DELETE("/:id", authMiddleware, h.delete)
-}
-
-func (h *CommentHandler) create(c *gin.Context) {
-	var input service.CreateCommentInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+// ListByRecipe lista os comentários de uma receita (público, paginado).
+func (h *CommentHandler) ListByRecipe(c *gin.Context) {
+	var q service.PageQuery
+	if !bindQuery(c, &q) {
 		return
 	}
 
-	userID := c.GetString(middleware.UserIDKey)
-	comment, err := h.service.Create(userID, input)
+	page, err := h.service.ListByRecipe(c.Request.Context(), c.Param("id"), q)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, page)
+}
+
+func (h *CommentHandler) Create(c *gin.Context) {
+	var input service.CommentInput
+	if !bindJSON(c, &input) {
 		return
 	}
 
+	comment, err := h.service.Create(c.Request.Context(), c.GetString(middleware.UserIDKey), c.Param("id"), input)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
 	c.JSON(http.StatusCreated, comment)
 }
 
-func (h *CommentHandler) getAll(c *gin.Context) {
-	comments, err := h.service.GetAll()
+func (h *CommentHandler) Update(c *gin.Context) {
+	id, ok := idParam(c, "id", service.ErrCommentNotFound)
+	if !ok {
+		return
+	}
+	var input service.CommentInput
+	if !bindJSON(c, &input) {
+		return
+	}
+
+	comment, err := h.service.Update(c.Request.Context(), id, c.GetString(middleware.UserIDKey), input)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, comments)
-}
-
-func (h *CommentHandler) update(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "id inválido"})
-		return
-	}
-
-	var input service.UpdateCommentInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	userID := c.GetString(middleware.UserIDKey)
-	comment, err := h.service.Update(uint(id), userID, input)
-	if err != nil {
-		c.JSON(statusFromErr(err), gin.H{"error": err.Error()})
-		return
-	}
-
 	c.JSON(http.StatusOK, comment)
 }
 
-func (h *CommentHandler) delete(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+func (h *CommentHandler) Delete(c *gin.Context) {
+	id, ok := idParam(c, "id", service.ErrCommentNotFound)
+	if !ok {
+		return
+	}
+
+	err := h.service.Delete(c.Request.Context(), id, c.GetString(middleware.UserIDKey), c.GetBool(middleware.IsAdmKey))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "id inválido"})
+		respondError(c, err)
 		return
 	}
-
-	userID := c.GetString(middleware.UserIDKey)
-	isAdm := c.GetBool(middleware.IsAdmKey)
-
-	if err := h.service.Delete(uint(id), userID, isAdm); err != nil {
-		c.JSON(statusFromErr(err), gin.H{"error": err.Error()})
-		return
-	}
-
 	c.Status(http.StatusNoContent)
 }

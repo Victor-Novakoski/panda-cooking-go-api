@@ -13,36 +13,33 @@ type FavoriteHandler struct {
 	service *service.FavoriteService
 }
 
-func NewFavoriteHandler(service *service.FavoriteService) *FavoriteHandler {
-	return &FavoriteHandler{service: service}
+func NewFavoriteHandler(svc *service.FavoriteService) *FavoriteHandler {
+	return &FavoriteHandler{service: svc}
 }
 
-func (h *FavoriteHandler) RegisterRoutes(r *gin.RouterGroup, authMiddleware gin.HandlerFunc) {
-	r.POST("/:recipeID", authMiddleware, h.add)
-	r.DELETE("/:recipeID", authMiddleware, h.remove)
-}
-
-func (h *FavoriteHandler) add(c *gin.Context) {
-	userID := c.GetString(middleware.UserIDKey)
-	recipeID := c.Param("recipeID")
-
-	fav, err := h.service.Add(userID, recipeID)
+// Status diz se a receita está nos favoritos de quem está logado.
+func (h *FavoriteHandler) Status(c *gin.Context) {
+	status, err := h.service.Status(c.Request.Context(), c.GetString(middleware.UserIDKey), c.Param("recipeID"))
 	if err != nil {
-		c.JSON(statusFromErr(err), gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
-
-	c.JSON(http.StatusCreated, fav)
+	c.JSON(http.StatusOK, status)
 }
 
-func (h *FavoriteHandler) remove(c *gin.Context) {
-	userID := c.GetString(middleware.UserIDKey)
-	recipeID := c.Param("recipeID")
-
-	if err := h.service.Remove(userID, recipeID); err != nil {
-		c.JSON(statusFromErr(err), gin.H{"error": err.Error()})
+func (h *FavoriteHandler) Add(c *gin.Context) {
+	status, err := h.service.Add(c.Request.Context(), c.GetString(middleware.UserIDKey), c.Param("recipeID"))
+	if err != nil {
+		respondError(c, err)
 		return
 	}
+	c.JSON(http.StatusCreated, status)
+}
 
+func (h *FavoriteHandler) Remove(c *gin.Context) {
+	if err := h.service.Remove(c.Request.Context(), c.GetString(middleware.UserIDKey), c.Param("recipeID")); err != nil {
+		respondError(c, err)
+		return
+	}
 	c.Status(http.StatusNoContent)
 }

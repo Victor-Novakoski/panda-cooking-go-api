@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 
 	"panda-cooking-go-api/internal/model"
@@ -10,123 +11,109 @@ import (
 )
 
 type CommentService struct {
-	repo       repository.CommentRepo
-	recipeRepo repository.RecipeRepo
+	repo    repository.CommentRepo
+	recipes repository.RecipeRepo
 }
 
-func NewCommentService(repo repository.CommentRepo, recipeRepo repository.RecipeRepo) *CommentService {
-	return &CommentService{repo: repo, recipeRepo: recipeRepo}
+func NewCommentService(repo repository.CommentRepo, recipes repository.RecipeRepo) *CommentService {
+	return &CommentService{repo: repo, recipes: recipes}
 }
 
-// --- DTOs ---
+func (s *CommentService) Create(ctx context.Context, userID, recipeID string, input CommentInput) (*CommentResponse, error) {
+	if err := s.checkRecipe(ctx, recipeID); err != nil {
+		return nil, err
+	}
 
-type CreateCommentInput struct {
-	Description string `json:"description" binding:"required"`
-	RecipeID    string `json:"recipe_id" binding:"required"`
-}
-
-type UpdateCommentInput struct {
-	Description string `json:"description" binding:"required"`
-}
-
-type CommentResponse struct {
-	ID          uint         `json:"id"`
-	Description string       `json:"description"`
-	RecipeID    string       `json:"recipe_id"`
-	User        UserResponse `json:"user"`
-}
-
-// --- Métodos ---
-
-func (s *CommentService) Create(userID string, input CreateCommentInput) (*CommentResponse, error) {
-	// garante que a receita existe antes de comentar
-	if _, err := s.recipeRepo.FindByID(input.RecipeID); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("receita não encontrada")
+	comment := &model.Comment{Description: input.Description, RecipeID: recipeID, UserID: userID}
+	if err := s.repo.Create(ctx, comment); err != nil {
+		// receita apagada entre a conferência e a gravação, ou conta apagada
+		// com o access token ainda válido
+		if errors.Is(err, gorm.ErrForeignKeyViolated) {
+			return nil, missingRecipeOrUser(s.checkRecipe(ctx, recipeID))
 		}
 		return nil, err
 	}
 
-	comment := &model.Comment{
-		Description: input.Description,
-		RecipeID:    input.RecipeID,
-		UserID:      userID,
-	}
-
-	if err := s.repo.Create(comment); err != nil {
-		return nil, err
-	}
-
-	// recarrega com o User para montar a resposta
-	created, err := s.repo.FindByID(comment.ID)
+	// recarrega com o autor para montar a resposta
+	created, err := s.repo.FindByID(ctx, comment.ID)
 	if err != nil {
 		return nil, err
 	}
-
-	return toCommentResponse(*created), nil
+	resp := toCommentResponse(*created)
+	return &resp, nil
 }
 
-func (s *CommentService) GetAll() ([]CommentResponse, error) {
-	comments, err := s.repo.FindAll()
-	if err != nil {
-		return nil, err
+// ListByRecipe lista os comentários da receita, dos mais novos aos mais antigos.
+func (s *CommentService) ListByRecipe(ctx context.Context, recipeID string, q PageQuery) (Page[CommentResponse], error) {
+	if err := s.checkRecipe(ctx, recipeID); err != nil {
+		return Page[CommentResponse]{}, err
 	}
 
-	result := make([]CommentResponse, len(comments))
+	page := q.repo(DefaultCommentsPerPage)
+	comments, total, err := s.repo.ListByRecipe(ctx, recipeID, page)
+	if err != nil {
+		return Page[CommentResponse]{}, err
+	}
+
+	items := make([]CommentResponse, len(comments))
 	for i, c := range comments {
-		result[i] = *toCommentResponse(c)
+		items[i] = toCommentResponse(c)
 	}
-	return result, nil
+	return newPage(items, page, total), nil
 }
 
-func (s *CommentService) Update(commentID uint, userID string, input UpdateCommentInput) (*CommentResponse, error) {
-	comment, err := s.repo.FindByID(commentID)
+func (s *CommentService) Update(ctx context.Context, commentID uint, userID string, input CommentInput) (*CommentResponse, error) {
+	comment, err := s.find(ctx, commentID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("comentário não encontrado")
-		}
 		return nil, err
 	}
-
 	if comment.UserID != userID {
-		return nil, errors.New("sem permissão para editar este comentário")
+		return nil, ErrForbiddenEditComment
 	}
 
 	comment.Description = input.Description
-	if err := s.repo.Update(comment); err != nil {
+	if err := s.repo.Update(ctx, comment); err != nil {
 		return nil, err
 	}
 
-	updated, err := s.repo.FindByID(comment.ID)
+	updated, err := s.repo.FindByID(ctx, comment.ID)
 	if err != nil {
 		return nil, err
 	}
-
-	return toCommentResponse(*updated), nil
+	resp := toCommentResponse(*updated)
+	return &resp, nil
 }
 
-func (s *CommentService) Delete(commentID uint, userID string, isAdm bool) error {
-	comment, err := s.repo.FindByID(commentID)
+// Delete: o autor apaga o próprio comentário; o admin apaga qualquer um.
+func (s *CommentService) Delete(ctx context.Context, commentID uint, userID string, isAdm bool) error {
+	comment, err := s.find(ctx, commentID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("comentário não encontrado")
-		}
 		return err
 	}
-
-	// admin pode deletar qualquer comentário, usuário só o próprio
 	if !isAdm && comment.UserID != userID {
-		return errors.New("sem permissão para deletar este comentário")
+		return ErrForbiddenDelComment
 	}
-
-	return s.repo.Delete(commentID)
+	return s.repo.Delete(ctx, commentID)
 }
 
-func toCommentResponse(c model.Comment) *CommentResponse {
-	return &CommentResponse{
-		ID:          c.ID,
-		Description: c.Description,
-		RecipeID:    c.RecipeID,
-		User:        *toUserResponse(&c.User),
+func (s *CommentService) find(ctx context.Context, id uint) (*model.Comment, error) {
+	comment, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		if notFound(err) {
+			return nil, ErrCommentNotFound
+		}
+		return nil, err
 	}
+	return comment, nil
+}
+
+func (s *CommentService) checkRecipe(ctx context.Context, recipeID string) error {
+	ok, err := s.recipes.Exists(ctx, recipeID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrRecipeNotFound
+	}
+	return nil
 }

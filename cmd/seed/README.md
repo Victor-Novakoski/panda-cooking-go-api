@@ -1,117 +1,54 @@
-# Seed de Receitas 🐼👨‍🍳
+# Seed de receitas 🐼👨‍🍳
 
-Script para popular o banco de dados com receitas brasileiras reais e deliciosas!
+Dados de demonstração com receitas brasileiras, para o site não abrir vazio.
 
-## 📋 O que é criado
+## O que é criado
 
-- **12 categorias**: Doces, Salgados, Massas, Carnes, Frangos, Peixes, Sopas, Saladas, Vegetarianos, Lanches, Bebidas, Pães e Bolos
-- **50+ ingredientes**: Ingredientes comuns da culinária brasileira
-- **3 usuários de exemplo**: Chefs com fotos de perfil
-- **10 receitas completas** incluindo:
-  - Brigadeiro Tradicional
-  - Coxinha de Frango
-  - Feijoada Completa
-  - Pão de Queijo Mineiro
-  - Moqueca Capixaba
-  - Bolo de Cenoura com Chocolate
-  - Estrogonofe de Frango
-  - Açaí na Tigela
-  - Lasanha à Bolonhesa
-  - Pudim de Leite Condensado
+- **3 usuários**, todos com a senha `panda-cooking-demo`
+- **10 receitas completas**, com fotos (Unsplash), ingredientes com quantidade, modo de preparo e alguns comentários:
+  Brigadeiro Tradicional, Coxinha de Frango, Feijoada Completa, Pão de Queijo Mineiro, Moqueca Capixaba, Bolo de Cenoura com Cobertura de Chocolate, Estrogonofe de Frango, Açaí na Tigela, Lasanha à Bolonhesa e Pudim de Leite Condensado
 
-Cada receita inclui:
-- ✅ Nome e descrição detalhada
-- ✅ Tempo de preparo
-- ✅ Número de porções
-- ✅ Imagens reais (Unsplash)
-- ✅ Lista completa de ingredientes com quantidades
-- ✅ Modo de preparo passo a passo
+As 12 categorias (Doces e Sobremesas, Salgados, Massas, Carnes, Frangos, Peixes e Frutos do Mar, Sopas e Caldos, Saladas, Vegetarianos, Lanches e Petiscos, Bebidas, Pães e Bolos) vêm da migration, não do seed.
 
-## 🚀 Como usar
+| Nome | E-mail | Admin |
+| --- | --- | --- |
+| Chef Maria Silva | `maria@pandacooking.com` | ✅ |
+| João Cozinheiro | `joao@pandacooking.com` | ❌ |
+| Ana Paula Gourmet | `ana@pandacooking.com` | ❌ |
 
-### 1. Configure a conexão com o banco
+## Como usar
 
-Por padrão, o script tenta conectar em:
-```
-host=localhost user=postgres password=postgres dbname=panda_cooking port=5433
-```
+Com `SEED_DEMO=true` (padrão no `docker compose up`), a API cria esses dados sozinha ao subir, se o banco ainda não tiver usuário. Nada que já foi cadastrado é apagado.
 
-Para usar outra configuração, defina a variável de ambiente:
-```bash
-export DATABASE_URL="host=localhost user=seu_user password=sua_senha dbname=panda_cooking port=5433 sslmode=disable"
-```
-
-### 2. Execute o seed
+Para apagar tudo e recriar:
 
 ```bash
 make seed
 ```
 
-Ou diretamente:
-```bash
-go run cmd/seed/main.go
-```
+`make seed` **apaga todos os dados** do banco (usuários, sessões, receitas, comentários e favoritos) antes de popular. Use só em desenvolvimento.
 
-## ⚠️ Atenção
+## Adicionando receitas
 
-O script **limpa todos os dados existentes** antes de popular. Use apenas em ambiente de desenvolvimento!
+Edite `demoRecipes` em `internal/seed/data.go`. O autor é a posição em `demoUsers` e a categoria é o nome:
 
-```sql
-TRUNCATE TABLE favorite_recipes, comments, preparations, ingredient_recipes, 
-image_recipes, recipes, ingredients, categories, users RESTART IDENTITY CASCADE
-```
-
-## 🖼️ Imagens
-
-As imagens são URLs do Unsplash (gratuitas e de alta qualidade). Se quiser usar imagens locais:
-
-1. Baixe as imagens
-2. Salve em uma pasta pública (ex: `public/images/recipes/`)
-3. Atualize as URLs no arquivo `cmd/seed/main.go`
-
-## 🔑 Usuários de exemplo
-
-| Nome | Email | Admin |
-|------|-------|-------|
-| Chef Maria Silva | maria@pandacooking.com | ✅ |
-| João Cozinheiro | joao@pandacooking.com | ❌ |
-| Ana Paula Gourmet | ana@pandacooking.com | ❌ |
-
-**Senha**: As senhas estão hasheadas com bcrypt. Você precisa implementar o hash adequado no código.
-
-## 🛠️ Personalizando
-
-Para adicionar mais receitas, edite o slice `recipes` na função `seedRecipes()` no arquivo `cmd/seed/main.go`.
-
-Exemplo:
 ```go
 {
-    recipe: model.Recipe{
-        Name:        "Sua Receita",
-        Description: "Descrição deliciosa",
-        Time:        "45 minutos",
-        Portions:    4,
-        UserID:      users[0].ID,
-        CategoryID:  1,
-    },
-    images: []string{
-        "https://images.unsplash.com/photo-xxx",
-    },
-    ingredients: map[string]string{
-        "Ingrediente 1": "1 xícara",
-        "Ingrediente 2": "200g",
-    },
-    preparations: []string{
-        "Passo 1",
-        "Passo 2",
-    },
+	recipe: model.Recipe{
+		Name:        "Sua Receita",
+		Description: "Descrição com pelo menos 10 caracteres",
+		Time:        "45 minutos",
+		Portions:    4,
+	},
+	author:   0,
+	category: "Doces e Sobremesas",
+	images:   []string{"https://images.unsplash.com/photo-xxx"},
+	ingredients: []demoIngredient{
+		{name: "Farinha de trigo", amount: "1 xícara"},
+		{name: "Açúcar", amount: "200g"},
+	},
+	preparations: []string{"Passo 1", "Passo 2"},
 },
 ```
 
-## 📸 Fontes de imagens gratuitas
-
-- [Unsplash](https://unsplash.com/) - Usado neste seed
-- [Pexels](https://www.pexels.com/)
-- [Pixabay](https://pixabay.com/)
-
-Busque por: "brazilian food", "coxinha", "brigadeiro", "feijoada", etc.
+Os textos seguem os mesmos limites da API, e `internal/seed/data_test.go` confere isso. Fotos de outro host funcionam, mas o front só otimiza as do `images.unsplash.com`.
