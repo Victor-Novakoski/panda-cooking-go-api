@@ -4,36 +4,39 @@ import (
 	"net/http"
 	"strings"
 
+	"panda-cooking-go-api/internal/repository"
 	"panda-cooking-go-api/pkg/token"
 
 	"github.com/gin-gonic/gin"
 )
 
-const UserIDKey = "userID"
-const IsAdmKey = "isAdm"
+const (
+	UserIDKey = "userID"
+	IsAdmKey  = "isAdm"
+)
 
+// Auth exige o access token no cabeçalho Authorization: Bearer <token>.
 func Auth(secretKey string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token não fornecido"})
+		scheme, raw, ok := strings.Cut(c.GetHeader("Authorization"), " ")
+		if !ok || !strings.EqualFold(scheme, "bearer") || raw == "" {
+			unauthorized(c, "token não fornecido")
 			return
 		}
 
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "formato do token inválido"})
+		claims, err := token.Parse(strings.TrimSpace(raw), secretKey)
+		if err != nil || !repository.IsUUID(claims.Subject) {
+			unauthorized(c, "token inválido ou expirado")
 			return
 		}
 
-		claims, err := token.Parse(parts[1], secretKey)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token inválido ou expirado"})
-			return
-		}
-
-		c.Set(UserIDKey, claims.UserID)
+		c.Set(UserIDKey, claims.Subject)
 		c.Set(IsAdmKey, claims.IsAdm)
 		c.Next()
 	}
+}
+
+func unauthorized(c *gin.Context, msg string) {
+	c.Header("WWW-Authenticate", `Bearer realm="panda-cooking"`)
+	c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": msg})
 }

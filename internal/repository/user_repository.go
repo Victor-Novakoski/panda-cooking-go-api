@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"context"
+
 	"panda-cooking-go-api/internal/model"
 
 	"gorm.io/gorm"
@@ -14,43 +16,38 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
-func (r *UserRepository) Create(user *model.User) error {
-	return r.db.Create(user).Error
+func (r *UserRepository) Create(ctx context.Context, user *model.User) error {
+	return r.db.WithContext(ctx).Create(user).Error
 }
 
-func (r *UserRepository) FindByEmail(email string) (*model.User, error) {
+func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*model.User, error) {
 	var user model.User
-	err := r.db.Where("email = ?", email).First(&user).Error
+	err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
 	return &user, nil
 }
 
-func (r *UserRepository) FindByID(id string) (*model.User, error) {
+func (r *UserRepository) FindByID(ctx context.Context, id string) (*model.User, error) {
+	if !IsUUID(id) {
+		return nil, gorm.ErrRecordNotFound
+	}
 	var user model.User
-	err := r.db.First(&user, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&user, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
 	return &user, nil
 }
 
-func (r *UserRepository) Update(user *model.User) error {
-	return r.db.Save(user).Error
+// Update grava só nome e foto, os únicos campos que o perfil edita.
+func (r *UserRepository) Update(ctx context.Context, user *model.User) error {
+	return r.db.WithContext(ctx).Model(user).Select("Name", "ImageProfile", "UpdatedAt").Updates(user).Error
 }
 
-func (r *UserRepository) Delete(id string) error {
-	return r.db.Delete(&model.User{}, "id = ?", id).Error
-}
-
-func (r *UserRepository) FindFavoriteRecipes(userID string) ([]model.FavoriteRecipe, error) {
-	var favorites []model.FavoriteRecipe
-	err := r.db.
-		Preload("Recipe").
-		Preload("Recipe.Category").
-		Preload("Recipe.Images").
-		Where("user_id = ?", userID).
-		Find(&favorites).Error
-	return favorites, err
+// Delete apaga o usuário; receitas, comentários, favoritos e sessões dele
+// vão junto (ON DELETE CASCADE).
+func (r *UserRepository) Delete(ctx context.Context, id string) error {
+	return r.db.WithContext(ctx).Delete(&model.User{}, "id = ?", id).Error
 }

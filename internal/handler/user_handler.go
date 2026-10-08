@@ -10,86 +10,75 @@ import (
 )
 
 type UserHandler struct {
-	service *service.UserService
+	users         *service.UserService
+	favorites     *service.FavoriteService
+	secureCookies bool
 }
 
-func NewUserHandler(service *service.UserService) *UserHandler {
-	return &UserHandler{service: service}
+func NewUserHandler(users *service.UserService, favorites *service.FavoriteService, secureCookies bool) *UserHandler {
+	return &UserHandler{users: users, favorites: favorites, secureCookies: secureCookies}
 }
 
-func (h *UserHandler) RegisterRoutes(r *gin.RouterGroup, authMiddleware gin.HandlerFunc) {
-	r.POST("", h.create)
-	r.GET("/profile", authMiddleware, h.getProfile)
-	r.PATCH("/profile", authMiddleware, h.update)
-	r.DELETE("/profile", authMiddleware, h.delete)
-	r.GET("/profile/favorite-recipes", authMiddleware, h.getFavoriteRecipes)
-}
-
-func (h *UserHandler) create(c *gin.Context) {
+// Create é o cadastro. Não abre sessão: o front manda para o login.
+func (h *UserHandler) Create(c *gin.Context) {
 	var input service.CreateUserInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindJSON(c, &input) {
 		return
 	}
 
-	user, err := h.service.Create(input)
+	user, err := h.users.Create(c.Request.Context(), input)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-
 	c.JSON(http.StatusCreated, user)
 }
 
-func (h *UserHandler) getProfile(c *gin.Context) {
-	userID := c.GetString(middleware.UserIDKey)
-
-	user, err := h.service.GetProfile(userID)
+func (h *UserHandler) GetProfile(c *gin.Context) {
+	user, err := h.users.GetProfile(c.Request.Context(), c.GetString(middleware.UserIDKey))
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-
 	c.JSON(http.StatusOK, user)
 }
 
-func (h *UserHandler) update(c *gin.Context) {
-	userID := c.GetString(middleware.UserIDKey)
-
+func (h *UserHandler) Update(c *gin.Context) {
 	var input service.UpdateUserInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindJSON(c, &input) {
 		return
 	}
 
-	user, err := h.service.Update(userID, input)
+	user, err := h.users.Update(c.Request.Context(), c.GetString(middleware.UserIDKey), input)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-
 	c.JSON(http.StatusOK, user)
 }
 
-func (h *UserHandler) delete(c *gin.Context) {
-	userID := c.GetString(middleware.UserIDKey)
-
-	if err := h.service.Delete(userID); err != nil {
+// Delete apaga a conta e os cookies de sessão (as sessões somem junto com
+// o usuário no banco).
+func (h *UserHandler) Delete(c *gin.Context) {
+	if err := h.users.Delete(c.Request.Context(), c.GetString(middleware.UserIDKey)); err != nil {
 		respondError(c, err)
 		return
 	}
-
+	clearCookies(c, h.secureCookies)
 	c.Status(http.StatusNoContent)
 }
 
-func (h *UserHandler) getFavoriteRecipes(c *gin.Context) {
-	userID := c.GetString(middleware.UserIDKey)
+// Favorites lista as receitas favoritas de quem está logado.
+func (h *UserHandler) Favorites(c *gin.Context) {
+	var q service.PageQuery
+	if !bindQuery(c, &q) {
+		return
+	}
 
-	favorites, err := h.service.GetFavoriteRecipes(userID)
+	page, err := h.favorites.List(c.Request.Context(), c.GetString(middleware.UserIDKey), q)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-
-	c.JSON(http.StatusOK, favorites)
+	c.JSON(http.StatusOK, page)
 }

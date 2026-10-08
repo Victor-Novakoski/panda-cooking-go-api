@@ -1,9 +1,11 @@
 package service_test
 
 import (
+	"context"
 	"testing"
 
 	"panda-cooking-go-api/internal/model"
+	"panda-cooking-go-api/internal/repository"
 	"panda-cooking-go-api/internal/service"
 	"panda-cooking-go-api/internal/service/mocks"
 
@@ -12,137 +14,157 @@ import (
 	"gorm.io/gorm"
 )
 
-func setupCommentService(commentRepo *mocks.CommentRepoMock, recipeRepo *mocks.RecipeRepoMock) *service.CommentService {
-	return service.NewCommentService(commentRepo, recipeRepo)
+func recipeExists(exists bool) *mocks.RecipeRepoMock {
+	return &mocks.RecipeRepoMock{ExistsFn: func(context.Context, string) (bool, error) { return exists, nil }}
+}
+
+// recipeDeletedMidway existe na primeira conferência e some na seguinte.
+func recipeDeletedMidway() *mocks.RecipeRepoMock {
+	calls := 0
+	return &mocks.RecipeRepoMock{ExistsFn: func(context.Context, string) (bool, error) {
+		calls++
+		return calls == 1, nil
+	}}
+}
+
+func storedComment() *model.Comment {
+	return &model.Comment{
+		ID: 5, Description: "Ficou ótima!", UserID: userID, RecipeID: recipeID,
+		User: model.User{ID: userID, Name: "Maria", Email: "maria@email.com"},
+	}
 }
 
 func TestCommentService_Create(t *testing.T) {
-	r := baseRecipe()
-	comment := model.Comment{ID: 1, Description: "Delicioso!", RecipeID: "recipe-uuid", UserID: "user-uuid"}
-
-	t.Run("cria comentário em receita existente", func(t *testing.T) {
-		commentRepo := &mocks.CommentRepoMock{
-			CreateFn:   func(c *model.Comment) error { c.ID = 1; return nil },
-			FindByIDFn: func(id uint) (*model.Comment, error) { return &comment, nil },
+	t.Run("grava e devolve com o autor", func(t *testing.T) {
+		var saved *model.Comment
+		repo := &mocks.CommentRepoMock{
+			CreateFn: func(_ context.Context, c *model.Comment) error {
+				saved = c
+				c.ID = 5
+				return nil
+			},
+			FindByIDFn: func(context.Context, uint) (*model.Comment, error) { return storedComment(), nil },
 		}
-		recipeRepo := &mocks.RecipeRepoMock{
-			FindByIDFn: func(id string) (*model.Recipe, error) { return &r, nil },
-		}
-		svc := setupCommentService(commentRepo, recipeRepo)
 
-		resp, err := svc.Create("user-uuid", service.CreateCommentInput{
-			Description: "Delicioso!",
-			RecipeID:    "recipe-uuid",
-		})
+		resp, err := service.NewCommentService(repo, recipeExists(true)).Create(ctx, userID, recipeID, service.CommentInput{Description: "Ficou ótima!"})
 
 		require.NoError(t, err)
-		assert.Equal(t, "Delicioso!", resp.Description)
+		assert.Equal(t, userID, saved.UserID)
+		assert.Equal(t, recipeID, saved.RecipeID)
+		assert.Equal(t, "Maria", resp.User.Name)
+		assert.Equal(t, recipeID, resp.RecipeID)
 	})
 
-	t.Run("receita inexistente retorna erro", func(t *testing.T) {
-		commentRepo := &mocks.CommentRepoMock{}
-		recipeRepo := &mocks.RecipeRepoMock{
-			FindByIDFn: func(id string) (*model.Recipe, error) {
-				return nil, gorm.ErrRecordNotFound
-			},
-		}
-		svc := setupCommentService(commentRepo, recipeRepo)
+	t.Run("receita que não existe é 404", func(t *testing.T) {
+		_, err := service.NewCommentService(&mocks.CommentRepoMock{}, recipeExists(false)).Create(ctx, userID, recipeID, service.CommentInput{Description: "Oi"})
 
-		_, err := svc.Create("user-uuid", service.CreateCommentInput{
-			Description: "Oi",
-			RecipeID:    "id-invalido",
-		})
+		assert.ErrorIs(t, err, service.ErrRecipeNotFound)
+	})
 
-		require.Error(t, err)
-		assert.Equal(t, "receita não encontrada", err.Error())
+	t.Run("receita apagada no meio do caminho é 404", func(t *testing.T) {
+		repo := &mocks.CommentRepoMock{CreateFn: func(context.Context, *model.Comment) error { return gorm.ErrForeignKeyViolated }}
+
+		_, err := service.NewCommentService(repo, recipeDeletedMidway()).Create(ctx, userID, recipeID, service.CommentInput{Description: "Oi"})
+
+		assert.ErrorIs(t, err, service.ErrRecipeNotFound)
+	})
+
+	t.Run("conta apagada com o access token ainda válido é usuário não encontrado", func(t *testing.T) {
+		repo := &mocks.CommentRepoMock{CreateFn: func(context.Context, *model.Comment) error { return gorm.ErrForeignKeyViolated }}
+
+		_, err := service.NewCommentService(repo, recipeExists(true)).Create(ctx, userID, recipeID, service.CommentInput{Description: "Oi"})
+
+		assert.ErrorIs(t, err, service.ErrUserNotFound)
 	})
 }
 
-func TestCommentService_Delete(t *testing.T) {
-	t.Run("dono do comentário pode deletar", func(t *testing.T) {
-		c := model.Comment{ID: 1, UserID: "user-uuid"}
-		commentRepo := &mocks.CommentRepoMock{
-			FindByIDFn: func(id uint) (*model.Comment, error) { return &c, nil },
-			DeleteFn:   func(id uint) error { return nil },
-		}
-		svc := setupCommentService(commentRepo, nil)
+func TestCommentService_ListByRecipe(t *testing.T) {
+	t.Run("página padrão de 10", func(t *testing.T) {
+		var got repository.Page
+		repo := &mocks.CommentRepoMock{ListByRecipeFn: func(_ context.Context, id string, p repository.Page) ([]model.Comment, int64, error) {
+			got = p
+			return []model.Comment{*storedComment()}, 1, nil
+		}}
 
-		err := svc.Delete(1, "user-uuid", false)
+		page, err := service.NewCommentService(repo, recipeExists(true)).ListByRecipe(ctx, recipeID, service.PageQuery{})
+
 		require.NoError(t, err)
+		assert.Equal(t, repository.Page{Number: 1, Size: service.DefaultCommentsPerPage}, got)
+		require.Len(t, page.Items, 1)
+		assert.Equal(t, "Maria", page.Items[0].User.Name)
 	})
 
-	t.Run("admin pode deletar comentário de qualquer usuário", func(t *testing.T) {
-		c := model.Comment{ID: 1, UserID: "outro-user"}
-		commentRepo := &mocks.CommentRepoMock{
-			FindByIDFn: func(id uint) (*model.Comment, error) { return &c, nil },
-			DeleteFn:   func(id uint) error { return nil },
-		}
-		svc := setupCommentService(commentRepo, nil)
+	t.Run("receita que não existe é 404", func(t *testing.T) {
+		_, err := service.NewCommentService(&mocks.CommentRepoMock{}, recipeExists(false)).ListByRecipe(ctx, recipeID, service.PageQuery{})
 
-		err := svc.Delete(1, "admin-uuid", true) // isAdm = true
-		require.NoError(t, err)
-	})
-
-	t.Run("usuário comum não pode deletar comentário alheio", func(t *testing.T) {
-		c := model.Comment{ID: 1, UserID: "dono-uuid"}
-		commentRepo := &mocks.CommentRepoMock{
-			FindByIDFn: func(id uint) (*model.Comment, error) { return &c, nil },
-		}
-		svc := setupCommentService(commentRepo, nil)
-
-		err := svc.Delete(1, "outro-user", false)
-		require.Error(t, err)
-		assert.Equal(t, "sem permissão para deletar este comentário", err.Error())
-	})
-
-	t.Run("comentário inexistente retorna erro", func(t *testing.T) {
-		commentRepo := &mocks.CommentRepoMock{
-			FindByIDFn: func(id uint) (*model.Comment, error) {
-				return nil, gorm.ErrRecordNotFound
-			},
-		}
-		svc := setupCommentService(commentRepo, nil)
-
-		err := svc.Delete(999, "user-uuid", false)
-		require.Error(t, err)
-		assert.Equal(t, "comentário não encontrado", err.Error())
+		assert.ErrorIs(t, err, service.ErrRecipeNotFound)
 	})
 }
 
 func TestCommentService_Update(t *testing.T) {
-	t.Run("dono pode editar o comentário", func(t *testing.T) {
-		c := model.Comment{ID: 1, Description: "Antes", UserID: "user-uuid"}
-		updated := model.Comment{ID: 1, Description: "Depois", UserID: "user-uuid"}
-
-		commentRepo := &mocks.CommentRepoMock{
-			FindByIDFn: func(id uint) (*model.Comment, error) {
-				if id == 1 && c.Description == "Antes" {
-					return &c, nil
-				}
-				return &updated, nil
-			},
-			UpdateFn: func(comment *model.Comment) error {
-				c.Description = comment.Description // simula a persistência
+	t.Run("autor edita", func(t *testing.T) {
+		repo := &mocks.CommentRepoMock{
+			FindByIDFn: func(context.Context, uint) (*model.Comment, error) { return storedComment(), nil },
+			UpdateFn: func(_ context.Context, c *model.Comment) error {
+				assert.Equal(t, "Ficou melhor ainda.", c.Description)
 				return nil
 			},
 		}
-		svc := setupCommentService(commentRepo, nil)
 
-		resp, err := svc.Update(1, "user-uuid", service.UpdateCommentInput{Description: "Depois"})
+		_, err := service.NewCommentService(repo, recipeExists(true)).Update(ctx, 5, userID, service.CommentInput{Description: "Ficou melhor ainda."})
 
 		require.NoError(t, err)
-		assert.Equal(t, "Depois", resp.Description)
 	})
 
-	t.Run("outro usuário não pode editar", func(t *testing.T) {
-		c := model.Comment{ID: 1, UserID: "dono-uuid"}
-		commentRepo := &mocks.CommentRepoMock{
-			FindByIDFn: func(id uint) (*model.Comment, error) { return &c, nil },
-		}
-		svc := setupCommentService(commentRepo, nil)
+	t.Run("outra pessoa, mesmo admin, não edita", func(t *testing.T) {
+		repo := &mocks.CommentRepoMock{FindByIDFn: func(context.Context, uint) (*model.Comment, error) { return storedComment(), nil }}
 
-		_, err := svc.Update(1, "invasor", service.UpdateCommentInput{Description: "Hackeado"})
-		require.Error(t, err)
-		assert.Equal(t, "sem permissão para editar este comentário", err.Error())
+		_, err := service.NewCommentService(repo, recipeExists(true)).Update(ctx, 5, otherID, service.CommentInput{Description: "Editado"})
+
+		assert.ErrorIs(t, err, service.ErrForbiddenEditComment)
 	})
+
+	t.Run("comentário que não existe é 404", func(t *testing.T) {
+		repo := &mocks.CommentRepoMock{FindByIDFn: func(context.Context, uint) (*model.Comment, error) { return nil, gorm.ErrRecordNotFound }}
+
+		_, err := service.NewCommentService(repo, recipeExists(true)).Update(ctx, 5, userID, service.CommentInput{Description: "Editado"})
+
+		assert.ErrorIs(t, err, service.ErrCommentNotFound)
+	})
+}
+
+func TestCommentService_Delete(t *testing.T) {
+	tests := []struct {
+		name    string
+		userID  string
+		isAdm   bool
+		wantErr error
+	}{
+		{name: "autor apaga", userID: userID},
+		{name: "admin apaga o de qualquer um", userID: otherID, isAdm: true},
+		{name: "outra pessoa recebe 403", userID: otherID, wantErr: service.ErrForbiddenDelComment},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			deleted := false
+			repo := &mocks.CommentRepoMock{
+				FindByIDFn: func(context.Context, uint) (*model.Comment, error) { return storedComment(), nil },
+				DeleteFn: func(context.Context, uint) error {
+					deleted = true
+					return nil
+				},
+			}
+
+			err := service.NewCommentService(repo, recipeExists(true)).Delete(ctx, 5, tt.userID, tt.isAdm)
+
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, err, tt.wantErr)
+				assert.False(t, deleted)
+				return
+			}
+			require.NoError(t, err)
+			assert.True(t, deleted)
+		})
+	}
 }

@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"panda-cooking-go-api/internal/middleware"
 	"panda-cooking-go-api/internal/service"
@@ -14,41 +13,28 @@ type RecipeHandler struct {
 	service *service.RecipeService
 }
 
-func NewRecipeHandler(service *service.RecipeService) *RecipeHandler {
-	return &RecipeHandler{service: service}
+func NewRecipeHandler(svc *service.RecipeService) *RecipeHandler {
+	return &RecipeHandler{service: svc}
 }
 
-func (h *RecipeHandler) RegisterRoutes(r *gin.RouterGroup, authMiddleware gin.HandlerFunc) {
-	r.GET("", h.getAll)
-	r.GET("/:id", h.getByID)
-	r.POST("", authMiddleware, h.create)
-	r.PATCH("/:id", authMiddleware, h.update)
-	r.PUT("/:id", authMiddleware, h.replace)
-	r.DELETE("/:id", authMiddleware, h.delete)
+// List é a listagem pública: busca por nome e descrição, filtro por
+// categoria e por autor, paginada.
+func (h *RecipeHandler) List(c *gin.Context) {
+	var q service.ListRecipesQuery
+	if !bindQuery(c, &q) {
+		return
+	}
 
-	r.POST("/:id/images", authMiddleware, h.addImage)
-	r.PATCH("/:id/images/:imageID", authMiddleware, h.updateImage)
-	r.DELETE("/:id/images/:imageID", authMiddleware, h.deleteImage)
-
-	r.POST("/:id/ingredients", authMiddleware, h.addIngredient)
-	r.DELETE("/:id/ingredients/:ingredientID", authMiddleware, h.deleteIngredient)
-
-	r.POST("/:id/preparations", authMiddleware, h.addPreparation)
-	r.PATCH("/:id/preparations/:prepID", authMiddleware, h.updatePreparation)
-	r.DELETE("/:id/preparations/:prepID", authMiddleware, h.deletePreparation)
-}
-
-func (h *RecipeHandler) getAll(c *gin.Context) {
-	recipes, err := h.service.GetAll()
+	page, err := h.service.List(c.Request.Context(), q)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, recipes)
+	c.JSON(http.StatusOK, page)
 }
 
-func (h *RecipeHandler) getByID(c *gin.Context) {
-	recipe, err := h.service.GetByID(c.Param("id"))
+func (h *RecipeHandler) Get(c *gin.Context) {
+	recipe, err := h.service.GetByID(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -56,60 +42,52 @@ func (h *RecipeHandler) getByID(c *gin.Context) {
 	c.JSON(http.StatusOK, recipe)
 }
 
-func (h *RecipeHandler) create(c *gin.Context) {
-	var input service.CreateRecipeInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+func (h *RecipeHandler) Create(c *gin.Context) {
+	var input service.RecipeInput
+	if !bindJSON(c, &input) {
 		return
 	}
 
-	userID := c.GetString(middleware.UserIDKey)
-	recipe, err := h.service.Create(userID, input)
+	recipe, err := h.service.Create(c.Request.Context(), c.GetString(middleware.UserIDKey), input)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-
 	c.JSON(http.StatusCreated, recipe)
 }
 
-func (h *RecipeHandler) update(c *gin.Context) {
+// Update (PATCH) muda só os campos enviados.
+func (h *RecipeHandler) Update(c *gin.Context) {
 	var input service.UpdateRecipeInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindJSON(c, &input) {
 		return
 	}
 
-	userID := c.GetString(middleware.UserIDKey)
-	recipe, err := h.service.Update(c.Param("id"), userID, input)
+	recipe, err := h.service.Update(c.Request.Context(), c.Param("id"), c.GetString(middleware.UserIDKey), input)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-
 	c.JSON(http.StatusOK, recipe)
 }
 
-func (h *RecipeHandler) replace(c *gin.Context) {
-	var input service.ReplaceRecipeInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+// Replace (PUT) troca a receita inteira numa transação.
+func (h *RecipeHandler) Replace(c *gin.Context) {
+	var input service.RecipeInput
+	if !bindJSON(c, &input) {
 		return
 	}
 
-	userID := c.GetString(middleware.UserIDKey)
-	recipe, err := h.service.Replace(c.Param("id"), userID, input)
+	recipe, err := h.service.Replace(c.Request.Context(), c.Param("id"), c.GetString(middleware.UserIDKey), input)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-
 	c.JSON(http.StatusOK, recipe)
 }
 
-func (h *RecipeHandler) delete(c *gin.Context) {
-	userID := c.GetString(middleware.UserIDKey)
-	if err := h.service.Delete(c.Param("id"), userID); err != nil {
+func (h *RecipeHandler) Delete(c *gin.Context) {
+	if err := h.service.Delete(c.Request.Context(), c.Param("id"), c.GetString(middleware.UserIDKey)); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -118,156 +96,123 @@ func (h *RecipeHandler) delete(c *gin.Context) {
 
 // --- Imagens ---
 
-func (h *RecipeHandler) addImage(c *gin.Context) {
+func (h *RecipeHandler) AddImage(c *gin.Context) {
 	var input service.ImageRecipeInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindJSON(c, &input) {
 		return
 	}
 
-	userID := c.GetString(middleware.UserIDKey)
-	img, err := h.service.AddImage(c.Param("id"), userID, input)
+	img, err := h.service.AddImage(c.Request.Context(), c.Param("id"), c.GetString(middleware.UserIDKey), input)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-
 	c.JSON(http.StatusCreated, img)
 }
 
-func (h *RecipeHandler) updateImage(c *gin.Context) {
+func (h *RecipeHandler) UpdateImage(c *gin.Context) {
+	imageID, ok := idParam(c, "imageID", service.ErrImageNotFound)
+	if !ok {
+		return
+	}
 	var input service.ImageRecipeInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindJSON(c, &input) {
 		return
 	}
 
-	imageID, err := parseUintParam(c, "imageID")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "imageID inválido"})
-		return
-	}
-
-	userID := c.GetString(middleware.UserIDKey)
-	img, err := h.service.UpdateImage(c.Param("id"), userID, imageID, input)
+	img, err := h.service.UpdateImage(c.Request.Context(), c.Param("id"), c.GetString(middleware.UserIDKey), imageID, input)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-
 	c.JSON(http.StatusOK, img)
 }
 
-func (h *RecipeHandler) deleteImage(c *gin.Context) {
-	imageID, err := parseUintParam(c, "imageID")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "imageID inválido"})
+func (h *RecipeHandler) DeleteImage(c *gin.Context) {
+	imageID, ok := idParam(c, "imageID", service.ErrImageNotFound)
+	if !ok {
 		return
 	}
 
-	userID := c.GetString(middleware.UserIDKey)
-	if err := h.service.DeleteImage(c.Param("id"), userID, imageID); err != nil {
+	if err := h.service.DeleteImage(c.Request.Context(), c.Param("id"), c.GetString(middleware.UserIDKey), imageID); err != nil {
 		respondError(c, err)
 		return
 	}
-
 	c.Status(http.StatusNoContent)
 }
 
 // --- Ingredientes ---
 
-func (h *RecipeHandler) addIngredient(c *gin.Context) {
+func (h *RecipeHandler) AddIngredient(c *gin.Context) {
 	var input service.IngredientRecipeInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindJSON(c, &input) {
 		return
 	}
 
-	userID := c.GetString(middleware.UserIDKey)
-	ir, err := h.service.AddIngredient(c.Param("id"), userID, input)
+	ir, err := h.service.AddIngredient(c.Request.Context(), c.Param("id"), c.GetString(middleware.UserIDKey), input)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-
 	c.JSON(http.StatusCreated, ir)
 }
 
-func (h *RecipeHandler) deleteIngredient(c *gin.Context) {
-	ingredientID, err := parseUintParam(c, "ingredientID")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ingredientID inválido"})
+func (h *RecipeHandler) DeleteIngredient(c *gin.Context) {
+	ingredientID, ok := idParam(c, "ingredientID", service.ErrIngredientNotFound)
+	if !ok {
 		return
 	}
 
-	userID := c.GetString(middleware.UserIDKey)
-	if err := h.service.DeleteIngredient(c.Param("id"), userID, ingredientID); err != nil {
+	if err := h.service.DeleteIngredient(c.Request.Context(), c.Param("id"), c.GetString(middleware.UserIDKey), ingredientID); err != nil {
 		respondError(c, err)
 		return
 	}
-
 	c.Status(http.StatusNoContent)
 }
 
 // --- Preparos ---
 
-func (h *RecipeHandler) addPreparation(c *gin.Context) {
+func (h *RecipeHandler) AddPreparation(c *gin.Context) {
 	var input service.PreparationInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindJSON(c, &input) {
 		return
 	}
 
-	userID := c.GetString(middleware.UserIDKey)
-	p, err := h.service.AddPreparation(c.Param("id"), userID, input)
+	p, err := h.service.AddPreparation(c.Request.Context(), c.Param("id"), c.GetString(middleware.UserIDKey), input)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-
 	c.JSON(http.StatusCreated, p)
 }
 
-func (h *RecipeHandler) updatePreparation(c *gin.Context) {
+func (h *RecipeHandler) UpdatePreparation(c *gin.Context) {
+	prepID, ok := idParam(c, "prepID", service.ErrPreparationNotFound)
+	if !ok {
+		return
+	}
 	var input service.PreparationInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindJSON(c, &input) {
 		return
 	}
 
-	prepID, err := parseUintParam(c, "prepID")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "prepID inválido"})
-		return
-	}
-
-	userID := c.GetString(middleware.UserIDKey)
-	p, err := h.service.UpdatePreparation(c.Param("id"), userID, prepID, input)
+	p, err := h.service.UpdatePreparation(c.Request.Context(), c.Param("id"), c.GetString(middleware.UserIDKey), prepID, input)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-
 	c.JSON(http.StatusOK, p)
 }
 
-func (h *RecipeHandler) deletePreparation(c *gin.Context) {
-	prepID, err := parseUintParam(c, "prepID")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "prepID inválido"})
+func (h *RecipeHandler) DeletePreparation(c *gin.Context) {
+	prepID, ok := idParam(c, "prepID", service.ErrPreparationNotFound)
+	if !ok {
 		return
 	}
 
-	userID := c.GetString(middleware.UserIDKey)
-	if err := h.service.DeletePreparation(c.Param("id"), userID, prepID); err != nil {
+	if err := h.service.DeletePreparation(c.Request.Context(), c.Param("id"), c.GetString(middleware.UserIDKey), prepID); err != nil {
 		respondError(c, err)
 		return
 	}
-
 	c.Status(http.StatusNoContent)
-}
-
-func parseUintParam(c *gin.Context, name string) (uint, error) {
-	v, err := strconv.ParseUint(c.Param(name), 10, 64)
-	return uint(v), err
 }

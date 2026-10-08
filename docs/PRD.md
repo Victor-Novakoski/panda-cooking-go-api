@@ -18,14 +18,14 @@ Uma rede de receitas: qualquer pessoa navega e lê receitas; quem cria conta pub
 
 | Funcionalidade | Situação |
 | --- | --- |
-| Cadastro e login (JWT) | ✅ |
+| Cadastro e login, sessão com renovação em cookie `HttpOnly` | ✅ |
 | Perfil: ver, editar, apagar conta | ✅ |
-| Listar e ver receitas, filtrar por categoria | ✅ (filtro no front) |
+| Listar e ver receitas, com paginação | ✅ |
 | Publicar, editar e apagar receita própria | ✅ |
 | Fotos, ingredientes e passos do preparo | ✅ |
 | Comentários (dono edita; dono ou admin apaga) | ✅ |
 | Favoritos | ✅ |
-| Busca e paginação na API | ⏳ etapa 3 |
+| Busca por nome e descrição (sem diferenciar acento) e filtro por categoria e autor | ✅ |
 | Upload de imagem (hoje é só URL) | 💭 a decidir |
 
 ## Fora do escopo por enquanto

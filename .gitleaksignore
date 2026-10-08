@@ -1,0 +1,2 @@
+# Token de teste sem assinatura (alg none), não é segredo; hoje o teste monta o token em tempo de execução.
+f5600f6ff1f25a6259b53d0d1871eb3fe382c765:internal/server/auth_test.go:jwt:226

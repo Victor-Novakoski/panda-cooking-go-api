@@ -1,109 +1,140 @@
+// Command api sobe a API do Panda Cooking.
+//
+// Com o argumento healthcheck, só confere se a API que já está rodando
+// responde no /health: é o HEALTHCHECK do Docker, já que a imagem
+// distroless não tem curl nem wget.
 package main
 
 import (
-	"log"
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"strconv"
+	"syscall"
 	"time"
 
+	"panda-cooking-go-api/api"
+	"panda-cooking-go-api/internal/applog"
 	"panda-cooking-go-api/internal/config"
 	"panda-cooking-go-api/internal/database"
-	"panda-cooking-go-api/internal/handler"
-	"panda-cooking-go-api/internal/middleware"
-	"panda-cooking-go-api/internal/ratelimit"
-	"panda-cooking-go-api/internal/repository"
 	"panda-cooking-go-api/internal/seed"
-	"panda-cooking-go-api/internal/service"
+	"panda-cooking-go-api/internal/server"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
 
 func main() {
-	if err := godotenv.Load(); err != nil {
-		log.Println("arquivo .env não encontrado, usando variáveis de ambiente do sistema")
+	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
+		os.Exit(healthcheck())
 	}
+	if err := run(); err != nil {
+		slog.Error("a API parou", "erro", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
+	// o .env é opcional: no Docker as variáveis já vêm do ambiente
+	_ = godotenv.Load()
 
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("configuração inválida: %v", err)
-	}
-	if cfg.IsProduction() {
-		gin.SetMode(gin.ReleaseMode)
+		return fmt.Errorf("configuração inválida: %w", err)
 	}
 
-	db, err := database.Connect(cfg.DB)
+	log := applog.New(cfg.IsProduction(), os.Stdout)
+	slog.SetDefault(log)
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	db, err := database.Connect(ctx, cfg.DB.URL(), log)
 	if err != nil {
-		log.Fatalf("erro ao conectar ao banco: %v", err)
+		return fmt.Errorf("conectar ao banco: %w", err)
 	}
-	log.Println("banco de dados conectado")
+	if err := database.Migrate(ctx, db, cfg.DB.URL()); err != nil {
+		return err
+	}
+	log.Info("banco conectado e migrations aplicadas")
+
 	if cfg.SeedDemo {
-		created, err := seed.Demo(db, false)
+		created, err := seed.Demo(ctx, db, false)
 		if err != nil {
-			log.Fatalf("erro ao criar os dados de demonstração: %v", err)
+			return fmt.Errorf("criar dados de demonstração: %w", err)
 		}
 		if created {
-			log.Printf("dados de demonstração criados (senha dos usuários: %s)", seed.DemoPassword)
+			log.Info("dados de demonstração criados", "senha_dos_usuarios", seed.DemoPassword)
 		}
 	}
-	database.Seed(db)
 
-	// Repositories
-	userRepo := repository.NewUserRepository(db)
-	recipeRepo := repository.NewRecipeRepository(db)
-	categoryRepo := repository.NewCategoryRepository(db)
-	commentRepo := repository.NewCommentRepository(db)
-	favoriteRepo := repository.NewFavoriteRepository(db)
-
-	// Services
-	userService := service.NewUserService(userRepo, cfg.SecretKey)
-	recipeService := service.NewRecipeService(recipeRepo)
-	categoryService := service.NewCategoryService(categoryRepo)
-	commentService := service.NewCommentService(commentRepo, recipeRepo)
-	favoriteService := service.NewFavoriteService(favoriteRepo, recipeRepo)
-
-	// Handlers
-	authHandler := handler.NewAuthHandler(userService)
-	userHandler := handler.NewUserHandler(userService)
-	recipeHandler := handler.NewRecipeHandler(recipeService)
-	categoryHandler := handler.NewCategoryHandler(categoryService)
-	commentHandler := handler.NewCommentHandler(commentService)
-	favoriteHandler := handler.NewFavoriteHandler(favoriteService)
-
-	authMiddleware := middleware.Auth(cfg.SecretKey)
-
-	r := gin.Default()
-
-	// Sem proxy confiável, o IP do cliente é o da conexão: assim ninguém burla
-	// o limite por IP mandando um X-Forwarded-For falso. No deploy atrás de
-	// proxy reverso, o IP dele entra aqui.
-	if err := r.SetTrustedProxies(nil); err != nil {
-		log.Fatalf("erro ao configurar proxies: %v", err)
+	router, err := server.New(cfg, server.FromDB(db, log, api.Spec))
+	if err != nil {
+		return fmt.Errorf("montar rotas: %w", err)
 	}
 
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:3001"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-		AllowCredentials: true,
-	}))
-
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
-	})
-
-	// 10 tentativas de login por minuto por IP; o bloqueio por e-mail fica no UserService
-	loginLimiter := ratelimit.New(10, time.Minute)
-	authHandler.RegisterRoutes(r.Group("/auth"), middleware.RateLimitByIP(loginLimiter))
-	userHandler.RegisterRoutes(r.Group("/users"), authMiddleware)
-	recipes := r.Group("/recipes")
-	recipeHandler.RegisterRoutes(recipes, authMiddleware)
-	commentHandler.RegisterRecipeRoutes(recipes)
-	categoryHandler.RegisterRoutes(r.Group("/categories"))
-	commentHandler.RegisterRoutes(r.Group("/comments"), authMiddleware)
-	favoriteHandler.RegisterRoutes(r.Group("/favorites"), authMiddleware)
-
-	log.Printf("servidor rodando na porta %s", cfg.Port)
-	if err := r.Run(":" + cfg.Port); err != nil {
-		log.Fatalf("erro ao iniciar servidor: %v", err)
+	srv := &http.Server{
+		Addr:    ":" + cfg.Port,
+		Handler: router,
+		// prazos da conexão: um cliente lento não segura o servidor
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       2 * time.Minute,
+		MaxHeaderBytes:    64 << 10,
+		ErrorLog:          slog.NewLogLogger(log.Handler(), slog.LevelWarn),
 	}
+
+	serveErr := make(chan error, 1)
+	go func() { serveErr <- srv.ListenAndServe() }()
+	log.Info("API no ar", "porta", cfg.Port, "ambiente", cfg.Env)
+
+	select {
+	case err := <-serveErr:
+		return err
+	case <-ctx.Done():
+	}
+
+	// SIGTERM (docker stop): para de aceitar conexão e espera as requisições
+	// em andamento terminarem
+	log.Info("desligando a API")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		return fmt.Errorf("desligar: %w", err)
+	}
+	if err := <-serveErr; err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	if sqlDB, err := db.DB(); err == nil {
+		_ = sqlDB.Close()
+	}
+	return nil
+}
+
+// healthcheck devolve 0 se a API local responde 200 no /health.
+func healthcheck() int {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	if _, err := strconv.ParseUint(port, 10, 16); err != nil {
+		fmt.Fprintln(os.Stderr, "healthcheck: PORT inválida")
+		return 1
+	}
+	client := http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Get("http://127.0.0.1:" + port + "/health") //nolint:gosec // G704: endereço fixo da própria máquina; a porta é um número conferido acima
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "healthcheck:", err)
+		return 1
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		fmt.Fprintln(os.Stderr, "healthcheck: status", resp.StatusCode)
+		return 1
+	}
+	return 0
 }

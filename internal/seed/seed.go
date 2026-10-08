@@ -1,11 +1,14 @@
-// Package seed cria os dados de demonstração: categorias, ingredientes,
-// três usuários que conseguem logar e dez receitas brasileiras.
+// Package seed cria os dados de demonstração: três usuários que conseguem
+// entrar, dez receitas brasileiras, comentários e favoritos.
 package seed
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"panda-cooking-go-api/internal/model"
+	"panda-cooking-go-api/internal/service"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -15,108 +18,148 @@ import (
 // propósito (está no README) para quem visita o projeto conseguir entrar.
 const DemoPassword = "panda-cooking-demo" //nolint:gosec // senha pública dos usuários de demonstração
 
-const truncateAll = "TRUNCATE TABLE favorite_recipes, comments, preparations, ingredient_recipes, " +
-	"image_recipes, recipes, ingredients, categories, users RESTART IDENTITY CASCADE"
+// As categorias ficam de fora: são fixas e vêm da migration.
+const truncateAll = "TRUNCATE TABLE refresh_tokens, sessions, favorite_recipes, comments, preparations, " +
+	"ingredient_recipes, image_recipes, recipes, ingredients, users RESTART IDENTITY CASCADE"
 
 // Demo popula o banco com os dados de demonstração. Com reset=false só age se
 // ainda não houver usuário nenhum, para não apagar o que já foi cadastrado;
 // com reset=true apaga tudo e recria. Diz se populou.
-func Demo(db *gorm.DB, reset bool) (bool, error) {
-	if !reset {
-		var users int64
-		if err := db.Model(&model.User{}).Count(&users).Error; err != nil {
-			return false, fmt.Errorf("contar usuários: %w", err)
-		}
-		if users > 0 {
-			return false, nil
-		}
-	}
-
+func Demo(ctx context.Context, db *gorm.DB, reset bool) (bool, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(DemoPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return false, fmt.Errorf("gerar hash da senha: %w", err)
 	}
 
-	err = db.Transaction(func(tx *gorm.DB) error {
+	created := false
+	err = db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// duas instâncias subindo juntas não populam o banco duas vezes
+		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext('panda-cooking-seed'))").Error; err != nil {
+			return fmt.Errorf("travar o seed: %w", err)
+		}
+		if !reset {
+			var users int64
+			if err := tx.Model(&model.User{}).Count(&users).Error; err != nil {
+				return fmt.Errorf("contar usuários: %w", err)
+			}
+			if users > 0 {
+				return nil
+			}
+		}
 		if err := tx.Exec(truncateAll).Error; err != nil {
 			return fmt.Errorf("limpar tabelas: %w", err)
 		}
-
-		categories := make(map[string]uint, len(categoryNames))
-		for _, name := range categoryNames {
-			c := model.Category{Name: name}
-			if err := tx.Create(&c).Error; err != nil {
-				return fmt.Errorf("criar categoria %q: %w", name, err)
-			}
-			categories[name] = c.ID
+		if err := populate(tx, string(hash), time.Now()); err != nil {
+			return err
 		}
-
-		ingredients := make(map[string]uint, len(ingredientNames))
-		for _, name := range ingredientNames {
-			if _, err := ingredientID(tx, ingredients, name); err != nil {
-				return err
-			}
-		}
-
-		users := make([]string, len(demoUsers))
-		for i, u := range demoUsers {
-			user := model.User{
-				Name:         u.name,
-				Email:        u.email,
-				Password:     string(hash),
-				ImageProfile: u.image,
-				IsAdm:        u.isAdm,
-			}
-			if err := tx.Create(&user).Error; err != nil {
-				return fmt.Errorf("criar usuário %q: %w", u.email, err)
-			}
-			users[i] = user.ID
-		}
-
-		for _, r := range demoRecipes {
-			if err := createRecipe(tx, r, users[r.author], categories[r.category], ingredients); err != nil {
-				return err
-			}
-		}
+		created = true
 		return nil
 	})
 	if err != nil {
 		return false, err
 	}
-	return true, nil
+	return created, nil
 }
 
-func createRecipe(tx *gorm.DB, r demoRecipe, userID string, categoryID uint, ingredients map[string]uint) error {
+func populate(tx *gorm.DB, passwordHash string, now time.Time) error {
+	var categories []model.Category
+	if err := tx.Find(&categories).Error; err != nil {
+		return fmt.Errorf("ler categorias: %w", err)
+	}
+	categoryIDs := make(map[string]uint, len(categories))
+	for _, c := range categories {
+		categoryIDs[c.Name] = c.ID
+	}
+
+	// tudo "aconteceu" nos últimos dias, a receita mais nova primeiro
+	start := now.Add(-time.Duration(len(demoRecipes)+1) * 24 * time.Hour)
+
+	users := make([]string, len(demoUsers))
+	for i, u := range demoUsers {
+		user := model.User{
+			Name:         u.name,
+			Email:        u.email,
+			PasswordHash: passwordHash,
+			ImageProfile: u.image,
+			IsAdm:        u.isAdm,
+			CreatedAt:    start,
+			UpdatedAt:    start,
+		}
+		if err := tx.Create(&user).Error; err != nil {
+			return fmt.Errorf("criar usuário %q: %w", u.email, err)
+		}
+		users[i] = user.ID
+	}
+
+	ingredients := map[string]uint{}
+	recipes := make(map[string]string, len(demoRecipes))
+	for i, r := range demoRecipes {
+		categoryID, ok := categoryIDs[r.category]
+		if !ok {
+			return fmt.Errorf("receita %q: categoria %q não existe", r.recipe.Name, r.category)
+		}
+		createdAt := now.Add(-time.Duration(i+1) * 22 * time.Hour)
+		id, err := createRecipe(tx, r, users, categoryID, createdAt, ingredients)
+		if err != nil {
+			return err
+		}
+		recipes[r.recipe.Name] = id
+	}
+
+	for i, f := range demoFavorites {
+		fav := model.FavoriteRecipe{
+			UserID:    users[f.user],
+			RecipeID:  recipes[f.recipe],
+			CreatedAt: now.Add(-time.Duration(len(demoFavorites)-i) * time.Hour),
+		}
+		if err := tx.Create(&fav).Error; err != nil {
+			return fmt.Errorf("criar favorito de %q: %w", f.recipe, err)
+		}
+	}
+	return nil
+}
+
+func createRecipe(tx *gorm.DB, r demoRecipe, users []string, categoryID uint, createdAt time.Time, ingredients map[string]uint) (string, error) {
 	recipe := r.recipe
-	recipe.UserID = userID
+	recipe.UserID = users[r.author]
 	recipe.CategoryID = categoryID
-	if err := tx.Create(&recipe).Error; err != nil {
-		return fmt.Errorf("criar receita %q: %w", recipe.Name, err)
+	recipe.CreatedAt = createdAt
+	recipe.UpdatedAt = createdAt
+	if err := tx.Omit("User", "Category", "Images", "Ingredients", "Preparations").Create(&recipe).Error; err != nil {
+		return "", fmt.Errorf("criar receita %q: %w", recipe.Name, err)
 	}
 
 	for _, url := range r.images {
 		if err := tx.Create(&model.ImageRecipe{URL: url, RecipeID: recipe.ID}).Error; err != nil {
-			return fmt.Errorf("criar foto de %q: %w", recipe.Name, err)
+			return "", fmt.Errorf("criar foto de %q: %w", recipe.Name, err)
 		}
 	}
 
-	for name, amount := range r.ingredients {
-		id, err := ingredientID(tx, ingredients, name)
+	for _, ing := range r.ingredients {
+		id, err := ingredientID(tx, ingredients, service.NormalizeIngredient(ing.name))
 		if err != nil {
-			return err
+			return "", err
 		}
-		item := model.IngredientRecipe{Amount: amount, RecipeID: recipe.ID, IngredientID: id}
-		if err := tx.Create(&item).Error; err != nil {
-			return fmt.Errorf("criar ingrediente de %q: %w", recipe.Name, err)
+		item := model.IngredientRecipe{Amount: ing.amount, RecipeID: recipe.ID, IngredientID: id}
+		if err := tx.Omit("Ingredient").Create(&item).Error; err != nil {
+			return "", fmt.Errorf("criar ingrediente de %q: %w", recipe.Name, err)
 		}
 	}
 
 	for _, step := range r.preparations {
 		if err := tx.Create(&model.Preparation{Description: step, RecipeID: recipe.ID}).Error; err != nil {
-			return fmt.Errorf("criar passo de %q: %w", recipe.Name, err)
+			return "", fmt.Errorf("criar passo de %q: %w", recipe.Name, err)
 		}
 	}
-	return nil
+
+	for i, c := range r.comments {
+		at := createdAt.Add(time.Duration(i+1) * 3 * time.Hour)
+		comment := model.Comment{Description: c.text, UserID: users[c.author], RecipeID: recipe.ID, CreatedAt: at, UpdatedAt: at}
+		if err := tx.Omit("User").Create(&comment).Error; err != nil {
+			return "", fmt.Errorf("criar comentário de %q: %w", recipe.Name, err)
+		}
+	}
+	return recipe.ID, nil
 }
 
 // ingredientID devolve o id do ingrediente, criando se ainda não existir.
