@@ -1,0 +1,25 @@
+name: Fluxo de branches
+
+# A main só recebe PR vindo da develop (docs/RULES.md). Com este check
+# obrigatório na proteção da main, um PR de feature direto para a main
+# não pode ser mergeado.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened]
+
+permissions: {}
+
+jobs:
+  origem:
+    name: PR para a main só da develop
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conferir a branch de origem
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          if [ "$HEAD_REF" != "develop" ]; then
+            echo "::error::PR para a main só pode vir da develop. Abra o PR de \"$HEAD_REF\" para a develop."
+            exit 1
+          fi
