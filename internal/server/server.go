@@ -30,6 +30,7 @@ const (
 	LoginLimit   = 10  // por minuto; o bloqueio por e-mail fica no AuthService
 	RefreshLimit = 30  // por minuto
 	SignupLimit  = 10  // por hora
+	UploadLimit  = 30  // fotos por minuto
 )
 
 // Handlers são os handlers que as rotas usam.
@@ -40,6 +41,7 @@ type Handlers struct {
 	Category *handler.CategoryHandler
 	Comment  *handler.CommentHandler
 	Favorite *handler.FavoriteHandler
+	Upload   *handler.UploadHandler
 	Health   gin.HandlerFunc
 	OpenAPI  gin.HandlerFunc
 }
@@ -51,6 +53,7 @@ type Guards struct {
 	Login   gin.HandlerFunc
 	Refresh gin.HandlerFunc
 	Signup  gin.HandlerFunc
+	Upload  gin.HandlerFunc
 }
 
 // Deps é o que a API precisa para rodar: os repositórios, o teste de vida
@@ -63,6 +66,7 @@ type Deps struct {
 	Comments   repository.CommentRepo
 	Favorites  repository.FavoriteRepo
 	Sessions   repository.SessionRepo
+	Uploads    repository.UploadRepo
 	Ping       func(context.Context) error
 	Log        *slog.Logger
 	Spec       []byte
@@ -77,6 +81,7 @@ func FromDB(db *gorm.DB, log *slog.Logger, spec []byte) Deps {
 		Comments:   repository.NewCommentRepository(db),
 		Favorites:  repository.NewFavoriteRepository(db),
 		Sessions:   repository.NewSessionRepository(db),
+		Uploads:    repository.NewUploadRepository(db),
 		Ping:       func(ctx context.Context) error { return database.Ping(ctx, db) },
 		Log:        log,
 		Spec:       spec,
@@ -94,6 +99,7 @@ func New(cfg config.Config, d Deps) (*gin.Engine, error) {
 		Category: handler.NewCategoryHandler(service.NewCategoryService(d.Categories)),
 		Comment:  handler.NewCommentHandler(service.NewCommentService(d.Comments, d.Recipes)),
 		Favorite: handler.NewFavoriteHandler(favorites),
+		Upload:   handler.NewUploadHandler(service.NewUploadService(d.Uploads)),
 		Health:   handler.Health(d.Ping),
 		OpenAPI:  handler.OpenAPI(d.Spec),
 	}
@@ -115,6 +121,7 @@ func NewGuards(secretKey string) Guards {
 		Login:   middleware.RateLimitByIP(ratelimit.New(LoginLimit, time.Minute)),
 		Refresh: middleware.RateLimitByIP(ratelimit.New(RefreshLimit, time.Minute)),
 		Signup:  middleware.RateLimitByIP(ratelimit.New(SignupLimit, time.Hour)),
+		Upload:  middleware.RateLimitByIP(ratelimit.New(UploadLimit, time.Minute)),
 	}
 }
 
@@ -210,6 +217,9 @@ func Routes(r *gin.Engine, h Handlers, g Guards) {
 	comments := api.Group("/comments", g.Auth)
 	comments.PATCH("/:id", h.Comment.Update)
 	comments.DELETE("/:id", h.Comment.Delete)
+
+	api.POST("/uploads", g.Auth, g.Upload, h.Upload.Create)
+	api.GET("/uploads/:id", h.Upload.Get)
 
 	favorites := api.Group("/favorites", g.Auth)
 	favorites.GET("/:recipeID", h.Favorite.Status)

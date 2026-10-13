@@ -12,7 +12,7 @@ type CreateUserInput struct {
 	Name         string `json:"name" binding:"required,min=2,max=80"`
 	Email        string `json:"email" binding:"required,max=254,email"`
 	Password     string `json:"password" binding:"required,min=10,max=128"`
-	ImageProfile string `json:"image_profile" binding:"omitempty,max=2048,httpsurl"`
+	ImageProfile string `json:"image_profile" binding:"omitempty,max=2048,imageurl"`
 }
 
 func (in *CreateUserInput) Normalize() {
@@ -25,7 +25,7 @@ func (in *CreateUserInput) Normalize() {
 // está) de "mandou vazio": foto vazia remove a foto; nome vazio é recusado.
 type UpdateUserInput struct {
 	Name         *string `json:"name" binding:"omitempty,min=2,max=80"`
-	ImageProfile *string `json:"image_profile" binding:"omitempty,max=2048,httpsurl"`
+	ImageProfile *string `json:"image_profile" binding:"omitempty,max=2048,imageurl"`
 }
 
 func (in *UpdateUserInput) Normalize() {
@@ -84,7 +84,7 @@ func (in *UpdateRecipeInput) Normalize() {
 }
 
 type ImageRecipeInput struct {
-	URL string `json:"url" binding:"required,max=2048,httpsurl"`
+	URL string `json:"url" binding:"required,max=2048,imageurl"`
 }
 
 func (in *ImageRecipeInput) Normalize() { in.URL = strings.TrimSpace(in.URL) }

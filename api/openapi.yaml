@@ -7,6 +7,10 @@ info:
     API REST do Panda Cooking: cadastro e login, receitas com fotos,
     ingredientes e modo de preparo, comentários e favoritos.
 
+    **Fotos.** Uma foto pode ser um link https de qualquer site ou uma foto
+    enviada em `POST /api/uploads`, que devolve o endereço
+    `/api/uploads/{id}` para usar no lugar do link.
+
     **Sessão.** O login devolve um access token (JWT, 15 minutos) no corpo e
     grava o refresh token no cookie `panda_refresh` (HttpOnly,
     SameSite=Strict, Path=/api/auth). Quando o access token vence, o cliente
@@ -23,7 +27,8 @@ info:
     se a conta foi apagada enquanto o access token ainda valia.
 
     **Limites.** Por IP: 300 requisições por minuto em /api, 10 tentativas de
-    login por minuto, 30 renovações por minuto e 10 cadastros por hora.
+    login por minuto, 30 renovações por minuto, 10 cadastros por hora e 30
+    fotos enviadas por minuto.
     Depois de 5 senhas erradas, o login daquele e-mail fica bloqueado por 15
     minutos. Passou do limite, a resposta é 429 com `Retry-After`.
   license:
@@ -38,6 +43,7 @@ tags:
   - name: Itens da receita
   - name: Comentários
   - name: Favoritos
+  - name: Fotos
   - name: Sistema
 
 paths:
@@ -677,6 +683,54 @@ paths:
         "204": { description: Receita removida dos favoritos. }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /api/uploads:
+    post:
+      tags: [Fotos]
+      summary: Enviar uma foto
+      description: |
+        Guarda uma foto JPG, PNG, WebP ou GIF de até 900 KB (o formato é
+        conferido pelo conteúdo, não pelo nome do arquivo). O endereço
+        devolvido serve como `url` da foto da receita e como `image_profile`.
+      operationId: createUpload
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "201":
+          description: Foto guardada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Upload" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/Validation" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /api/uploads/{id}:
+    get:
+      tags: [Fotos]
+      summary: Ver uma foto enviada
+      description: Pública. O conteúdo de um endereço nunca muda, então a resposta pode ficar em cache por um ano.
+      operationId: getUpload
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: A foto.
+          content:
+            image/*:
+              schema: { type: string, format: binary }
+        "404": { $ref: "#/components/responses/NotFound" }
 
 components:
   securitySchemes:
@@ -791,7 +845,7 @@ components:
           minLength: 10
           maxLength: 128
           description: Até 72 bytes; senhas comuns e iguais ao e-mail são recusadas.
-        image_profile: { $ref: "#/components/schemas/HTTPSURL" }
+        image_profile: { $ref: "#/components/schemas/ImageURL" }
 
     ProfilePatch:
       type: object
@@ -801,14 +855,20 @@ components:
         image_profile:
           description: Vazio remove a foto.
           oneOf:
-            - $ref: "#/components/schemas/HTTPSURL"
+            - $ref: "#/components/schemas/ImageURL"
             - { type: string, maxLength: 0 }
 
-    HTTPSURL:
+    ImageURL:
+      description: Link https ou endereço de foto enviada (`/api/uploads/{id}`).
       type: string
-      format: uri
-      pattern: "^https://"
+      pattern: "^(https://|/api/uploads/[0-9a-fA-F-]{36}$)"
       maxLength: 2048
+
+    Upload:
+      type: object
+      required: [url]
+      properties:
+        url: { type: string, example: /api/uploads/0b7c1d2e-3f4a-4b5c-8d9e-0f1a2b3c4d5e }
 
     AuthResult:
       type: object
@@ -930,7 +990,7 @@ components:
       required: [url]
       additionalProperties: false
       properties:
-        url: { $ref: "#/components/schemas/HTTPSURL" }
+        url: { $ref: "#/components/schemas/ImageURL" }
 
     Ingredient:
       type: object

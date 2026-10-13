@@ -72,3 +72,8 @@ type SessionRepo interface {
 	// DeleteExpired apaga as sessões vencidas ou revogadas do usuário.
 	DeleteExpired(ctx context.Context, userID string, now time.Time) error
 }
+
+type UploadRepo interface {
+	Create(ctx context.Context, upload *model.Upload) error
+	FindByID(ctx context.Context, id string) (*model.Upload, error)
+}
