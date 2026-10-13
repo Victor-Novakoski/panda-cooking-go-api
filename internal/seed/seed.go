@@ -1,5 +1,5 @@
 // Package seed cria os dados de demonstração: três usuários que conseguem
-// entrar, dez receitas brasileiras, comentários e favoritos.
+// entrar, dezoito receitas, comentários e favoritos.
 package seed
 
 import (

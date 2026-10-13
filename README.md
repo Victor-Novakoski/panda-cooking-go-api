@@ -58,7 +58,7 @@ docker compose up --build
 | OpenAPI | http://localhost:8080/api/openapi.yaml |
 | Postgres | `localhost:5433` (`postgres` / `postgres`) |
 
-Na primeira subida a API aplica as migrations e cria dez receitas e três usuários. Todos entram com a senha `panda-cooking-demo`:
+Na primeira subida a API aplica as migrations e cria dezoito receitas e três usuários. Todos entram com a senha `panda-cooking-demo`:
 
 | Usuário | E-mail | Admin |
 | --- | --- | --- |

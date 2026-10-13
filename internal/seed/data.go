@@ -44,7 +44,7 @@ var demoRecipes = []demoRecipe{
 		author:   0,
 		category: "Doces e Sobremesas",
 		images: []string{
-			"https://images.unsplash.com/photo-1558312657-e4d69a7537f4?w=800",
+			"https://images.unsplash.com/photo-1702982852429-e0d0b27eb990?w=800",
 		},
 		ingredients: []demoIngredient{
 			{"Leite condensado", "1 lata (395g)"},
@@ -76,7 +76,7 @@ var demoRecipes = []demoRecipe{
 		author:   1,
 		category: "Salgados",
 		images: []string{
-			"https://images.unsplash.com/photo-1621939514649-280e2ee25f60?w=800",
+			"https://images.unsplash.com/photo-1767974963436-2208b3553561?w=800",
 		},
 		ingredients: []demoIngredient{
 			{"Frango", "500g (peito)"},
@@ -119,7 +119,7 @@ var demoRecipes = []demoRecipe{
 		author:   0,
 		category: "Carnes",
 		images: []string{
-			"https://images.unsplash.com/photo-1628418735687-547127d8dc5e?w=800",
+			"https://images.unsplash.com/photo-1734771771447-d943e2b5f4d5?w=800",
 		},
 		ingredients: []demoIngredient{
 			{"Feijão", "1kg (preto)"},
@@ -160,7 +160,7 @@ var demoRecipes = []demoRecipe{
 		author:   2,
 		category: "Pães e Bolos",
 		images: []string{
-			"https://images.unsplash.com/photo-1613376023733-0a73315d9b06?w=800",
+			"https://images.unsplash.com/photo-1559141680-d0bd7bc5af84?w=800",
 		},
 		ingredients: []demoIngredient{
 			{"Polvilho azedo", "500g"},
@@ -279,7 +279,7 @@ var demoRecipes = []demoRecipe{
 		author:   1,
 		category: "Frangos",
 		images: []string{
-			"https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=800",
+			"https://images.unsplash.com/photo-1644592219048-5c070fd3c91c?w=800",
 		},
 		ingredients: []demoIngredient{
 			{"Frango", "1kg (peito em cubos)"},
@@ -321,7 +321,7 @@ var demoRecipes = []demoRecipe{
 		author:   2,
 		category: "Bebidas",
 		images: []string{
-			"https://images.unsplash.com/photo-1590301157890-4810ed352733?w=800",
+			"https://images.unsplash.com/photo-1627308594190-a057cd4bfac8?w=800",
 		},
 		ingredients: []demoIngredient{
 			{"Polpa de açaí", "400g (congelada)"},
@@ -400,7 +400,7 @@ var demoRecipes = []demoRecipe{
 		author:   1,
 		category: "Doces e Sobremesas",
 		images: []string{
-			"https://images.unsplash.com/photo-1624353365286-3f8d62daad51?w=800",
+			"https://images.unsplash.com/photo-1702728109878-c61a98d80491?w=800",
 		},
 		ingredients: []demoIngredient{
 			{"Leite condensado", "1 lata"},
@@ -423,6 +423,281 @@ var demoRecipes = []demoRecipe{
 			{author: 0, text: "Clássico que nunca falha."},
 		},
 	},
+
+	// Picanha
+	{
+		recipe: model.Recipe{
+			Name:        "Picanha na Chapa",
+			Description: "O corte preferido do churrasco brasileiro, selado na chapa com a capa de gordura crocante e o miolo rosado.",
+			Time:        "30 minutos",
+			Portions:    4,
+		},
+		author:   1,
+		category: "Carnes",
+		images: []string{
+			"https://images.unsplash.com/photo-1702288824191-3003d32484b1?w=800",
+		},
+		ingredients: []demoIngredient{
+			{"Picanha", "1 peça (cerca de 1,2kg)"},
+			{"Sal grosso", "a gosto"},
+			{"Alho", "4 dentes"},
+			{"Manteiga", "1 colher de sopa"},
+			{"Alecrim", "2 ramos"},
+		},
+		preparations: []string{
+			"Tire a picanha da geladeira 30 minutos antes e corte em bifes grossos, a favor da gordura, contra as fibras.",
+			"Tempere só com sal grosso dos dois lados.",
+			"Aqueça bem a chapa ou frigideira de ferro. Comece selando o lado da gordura até ficar dourado e crocante.",
+			"Vire e sele cada lado por 3 a 4 minutos para ponto mal passado ou ao ponto.",
+			"No fim, junte a manteiga, o alho amassado e o alecrim e regue a carne com a manteiga derretida.",
+			"Deixe descansar 5 minutos antes de fatiar e sirva com farofa e vinagrete.",
+		},
+		comments: []demoComment{
+			{author: 0, text: "O segredo é não mexer na carne enquanto sela. Ficou perfeita!"},
+		},
+	},
+
+	// Frango assado
+	{
+		recipe: model.Recipe{
+			Name:        "Frango Assado com Batatas",
+			Description: "Almoço de domingo: frango inteiro temperado na véspera, pele dourada e batatas assadas no próprio caldo.",
+			Time:        "1h 40min",
+			Portions:    6,
+		},
+		author:   2,
+		category: "Frangos",
+		images: []string{
+			"https://images.unsplash.com/photo-1768238907887-023b7ac9f450?w=800",
+		},
+		ingredients: []demoIngredient{
+			{"Frango", "1 inteiro (cerca de 2kg)"},
+			{"Batata", "1kg (pequenas)"},
+			{"Limão", "2 unidades"},
+			{"Alho", "6 dentes"},
+			{"Páprica defumada", "1 colher de sopa"},
+			{"Azeite", "4 colheres de sopa"},
+			{"Alecrim", "3 ramos"},
+			{"Sal", "a gosto"},
+			{"Pimenta-do-reino", "a gosto"},
+		},
+		preparations: []string{
+			"Misture o suco dos limões, o alho amassado, a páprica, o azeite, sal e pimenta.",
+			"Espalhe o tempero por todo o frango, inclusive por baixo da pele, e deixe na geladeira por pelo menos 4 horas.",
+			"Corte as batatas ao meio e tempere com azeite, sal e alecrim.",
+			"Coloque o frango no centro da assadeira, as batatas em volta, e cubra com papel alumínio.",
+			"Asse a 200°C por 50 minutos. Retire o papel e asse por mais 30 a 40 minutos, regando com o caldo, até dourar.",
+		},
+		comments: []demoComment{
+			{author: 1, text: "Temperei na noite anterior e ficou muito suculento."},
+			{author: 0, text: "Coloquei cebola junto com as batatas, ficou ótimo."},
+		},
+	},
+
+	// Nhoque
+	{
+		recipe: model.Recipe{
+			Name:        "Nhoque de Batata ao Sugo",
+			Description: "Nhoque caseiro, leve e macio, com molho de tomate fresco, manjericão e mussarela derretida.",
+			Time:        "1h 10min",
+			Portions:    4,
+		},
+		author:   0,
+		category: "Massas",
+		images: []string{
+			"https://images.unsplash.com/photo-1651773550746-b76fea3cfb70?w=800",
+		},
+		ingredients: []demoIngredient{
+			{"Batata", "1kg (asterix)"},
+			{"Farinha de trigo", "1 1/2 xícara"},
+			{"Ovos", "1 unidade"},
+			{"Sal", "a gosto"},
+			{"Tomate", "6 maduros"},
+			{"Alho", "3 dentes"},
+			{"Azeite", "3 colheres de sopa"},
+			{"Manjericão", "1 maço"},
+			{"Queijo mussarela", "150g em cubos"},
+		},
+		preparations: []string{
+			"Cozinhe as batatas com casca até ficarem macias. Descasque ainda quentes e passe no espremedor.",
+			"Junte o ovo, o sal e a farinha aos poucos, só até a massa parar de grudar nas mãos.",
+			"Faça rolinhos, corte em pedaços de 2 cm e passe os nhoques na farinha.",
+			"Para o molho, refogue o alho no azeite, junte os tomates picados e cozinhe por 20 minutos. Acerte o sal e junte o manjericão.",
+			"Cozinhe os nhoques em água fervente com sal. Quando subirem à superfície, retire com escumadeira.",
+			"Misture ao molho, cubra com a mussarela e sirva assim que derreter.",
+		},
+		comments: []demoComment{
+			{author: 2, text: "Fiz no dia 29 com uma nota embaixo do prato, como manda a tradição!"},
+		},
+	},
+
+	// Torta de limão
+	{
+		recipe: model.Recipe{
+			Name:        "Torta de Limão",
+			Description: "Massa amanteigada, creme azedinho de limão e merengue maçaricado por cima. Refrescante e linda.",
+			Time:        "1h 30min",
+			Portions:    10,
+		},
+		author:   2,
+		category: "Doces e Sobremesas",
+		images: []string{
+			"https://images.unsplash.com/photo-1667933240742-956b770cd910?w=800",
+		},
+		ingredients: []demoIngredient{
+			{"Biscoito maisena", "200g"},
+			{"Manteiga", "100g derretida"},
+			{"Leite condensado", "2 latas"},
+			{"Limão", "4 unidades (suco e raspas)"},
+			{"Claras", "3 unidades"},
+			{"Açúcar", "6 colheres de sopa"},
+		},
+		preparations: []string{
+			"Triture os biscoitos, misture com a manteiga e forre o fundo e a lateral de uma forma de fundo removível.",
+			"Asse a massa a 180°C por 10 minutos e deixe esfriar.",
+			"Misture o leite condensado com o suco dos limões até engrossar e espalhe sobre a massa.",
+			"Bata as claras em neve, junte o açúcar aos poucos e bata até formar um merengue firme e brilhante.",
+			"Cubra a torta com o merengue e doure com maçarico ou no forno bem quente por alguns minutos.",
+			"Finalize com raspas de limão e leve à geladeira por 3 horas antes de servir.",
+		},
+		comments: []demoComment{
+			{author: 1, text: "A melhor torta de limão que já fiz, o creme fica no ponto certo."},
+		},
+	},
+
+	// Salada de palmito
+	{
+		recipe: model.Recipe{
+			Name:        "Salada de Palmito",
+			Description: "Salada colorida e rápida com palmito, tomate, ovos cozidos e um molho simples de limão e azeite.",
+			Time:        "20 minutos",
+			Portions:    4,
+		},
+		author:   0,
+		category: "Saladas",
+		images: []string{
+			"https://images.unsplash.com/photo-1626379907504-327b925f4b79?w=800",
+		},
+		ingredients: []demoIngredient{
+			{"Palmito", "1 vidro (300g)"},
+			{"Tomate cereja", "200g"},
+			{"Ovos", "3 unidades cozidos"},
+			{"Alface", "1 pé"},
+			{"Cebola roxa", "1/2 unidade"},
+			{"Azeite", "3 colheres de sopa"},
+			{"Limão", "1 unidade"},
+			{"Sal", "a gosto"},
+		},
+		preparations: []string{
+			"Lave e seque bem as folhas de alface e rasgue com as mãos.",
+			"Corte o palmito em rodelas, os tomates ao meio, os ovos em quartos e a cebola em fatias finas.",
+			"Misture o azeite, o suco do limão e o sal para o molho.",
+			"Monte a salada sobre as folhas e regue com o molho na hora de servir.",
+		},
+		comments: []demoComment{
+			{author: 1, text: "Acompanhamento perfeito para o churrasco."},
+		},
+	},
+
+	// Curry de grão-de-bico
+	{
+		recipe: model.Recipe{
+			Name:        "Curry de Grão-de-Bico",
+			Description: "Prato vegetariano cremoso com leite de coco, especiarias e grão-de-bico, servido com arroz soltinho.",
+			Time:        "40 minutos",
+			Portions:    4,
+		},
+		author:   2,
+		category: "Vegetarianos",
+		images: []string{
+			"https://images.unsplash.com/photo-1582576163090-09d3b6f8a969?w=800",
+		},
+		ingredients: []demoIngredient{
+			{"Grão-de-bico", "2 xícaras cozido"},
+			{"Leite de coco", "1 vidro (200ml)"},
+			{"Tomate", "2 unidades"},
+			{"Cebola", "1 unidade"},
+			{"Alho", "3 dentes"},
+			{"Gengibre", "1 colher de chá ralado"},
+			{"Curry em pó", "1 colher de sopa"},
+			{"Espinafre", "2 xícaras"},
+			{"Sal", "a gosto"},
+		},
+		preparations: []string{
+			"Refogue a cebola, o alho e o gengibre até a cebola ficar transparente.",
+			"Junte o curry e mexa por 1 minuto para soltar o aroma.",
+			"Adicione os tomates picados e cozinhe até desmancharem.",
+			"Junte o grão-de-bico e o leite de coco e cozinhe em fogo baixo por 15 minutos.",
+			"Desligue o fogo, misture o espinafre e acerte o sal. Sirva com arroz.",
+		},
+		comments: []demoComment{
+			{author: 0, text: "Nem senti falta de carne. Vai entrar no cardápio da semana."},
+		},
+	},
+
+	// Bolinho de bacalhau
+	{
+		recipe: model.Recipe{
+			Name:        "Bolinho de Bacalhau",
+			Description: "Petisco de boteco: crocante por fora, cremoso por dentro e cheio de bacalhau desfiado.",
+			Time:        "1 hora",
+			Portions:    30,
+		},
+		author:   1,
+		category: "Lanches e Petiscos",
+		images: []string{
+			"https://images.unsplash.com/photo-1772198537728-b318ab272ffb?w=800",
+		},
+		ingredients: []demoIngredient{
+			{"Bacalhau", "400g dessalgado"},
+			{"Batata", "500g"},
+			{"Cebola", "1 unidade"},
+			{"Alho", "2 dentes"},
+			{"Ovos", "2 unidades"},
+			{"Salsinha", "a gosto"},
+			{"Pimenta-do-reino", "a gosto"},
+			{"Óleo", "para fritar"},
+		},
+		preparations: []string{
+			"Cozinhe o bacalhau por 10 minutos, escorra e desfie bem, tirando pele e espinhas.",
+			"Cozinhe as batatas e amasse ainda quentes.",
+			"Refogue a cebola e o alho picados e misture com o bacalhau, a batata, os ovos, a salsinha e a pimenta.",
+			"Modele os bolinhos com duas colheres.",
+			"Frite em óleo quente até dourar e escorra em papel toalha.",
+		},
+		comments: []demoComment{
+			{author: 2, text: "Servi com limão e uma cerveja gelada. Sucesso!"},
+		},
+	},
+
+	// Caipirinha
+	{
+		recipe: model.Recipe{
+			Name:        "Caipirinha de Limão",
+			Description: "O drinque mais famoso do Brasil: limão, açúcar, gelo e cachaça. Simples e perfeito.",
+			Time:        "5 minutos",
+			Portions:    1,
+		},
+		author:   1,
+		category: "Bebidas",
+		images: []string{
+			"https://images.unsplash.com/photo-1662560094368-821ba04f6d0c?w=800",
+		},
+		ingredients: []demoIngredient{
+			{"Limão", "1 unidade (taiti)"},
+			{"Açúcar", "2 colheres de sopa"},
+			{"Cachaça", "60ml"},
+			{"Gelo", "a gosto"},
+		},
+		preparations: []string{
+			"Corte o limão em gomos e retire a parte branca do meio, que amarga.",
+			"No copo, amasse o limão com o açúcar, sem exagero, só para soltar o suco.",
+			"Complete com gelo, junte a cachaça e mexa bem.",
+		},
+		comments: []demoComment{
+			{author: 0, text: "Tirar a parte branca do limão muda tudo."},
+		},
+	},
 }
 
 // demoFavorites são as receitas que cada usuário de demonstração favoritou.
@@ -437,4 +712,7 @@ var demoFavorites = []struct {
 	{user: 1, recipe: "Lasanha à Bolonhesa"},
 	{user: 2, recipe: "Moqueca Capixaba"},
 	{user: 2, recipe: "Pudim de Leite Condensado"},
+	{user: 0, recipe: "Torta de Limão"},
+	{user: 1, recipe: "Picanha na Chapa"},
+	{user: 2, recipe: "Curry de Grão-de-Bico"},
 }

@@ -5,8 +5,8 @@ Dados de demonstração com receitas brasileiras, para o site não abrir vazio.
 ## O que é criado
 
 - **3 usuários**, todos com a senha `panda-cooking-demo`
-- **10 receitas completas**, com fotos (Unsplash), ingredientes com quantidade, modo de preparo e alguns comentários:
-  Brigadeiro Tradicional, Coxinha de Frango, Feijoada Completa, Pão de Queijo Mineiro, Moqueca Capixaba, Bolo de Cenoura com Cobertura de Chocolate, Estrogonofe de Frango, Açaí na Tigela, Lasanha à Bolonhesa e Pudim de Leite Condensado
+- **18 receitas completas**, com fotos (Unsplash), ingredientes com quantidade, modo de preparo e alguns comentários:
+  Brigadeiro Tradicional, Coxinha de Frango, Feijoada Completa, Pão de Queijo Mineiro, Moqueca Capixaba, Bolo de Cenoura com Cobertura de Chocolate, Estrogonofe de Frango, Açaí na Tigela, Lasanha à Bolonhesa, Pudim de Leite Condensado, Picanha na Chapa, Frango Assado com Batatas, Nhoque de Batata ao Sugo, Torta de Limão, Salada de Palmito, Curry de Grão-de-Bico, Bolinho de Bacalhau e Caipirinha de Limão
 
 As 12 categorias (Doces e Sobremesas, Salgados, Massas, Carnes, Frangos, Peixes e Frutos do Mar, Sopas e Caldos, Saladas, Vegetarianos, Lanches e Petiscos, Bebidas, Pães e Bolos) vêm da migration, não do seed.
 
@@ -51,4 +51,4 @@ Edite `demoRecipes` em `internal/seed/data.go`. O autor é a posição em `demoU
 },
 ```
 
-Os textos seguem os mesmos limites da API, e `internal/seed/data_test.go` confere isso. Fotos de outro host funcionam, mas o front só otimiza as do `images.unsplash.com`.
+Os textos seguem os mesmos limites da API, e `internal/seed/data_test.go` confere isso. Antes de usar uma foto, abra o link e confira se ela mostra o prato: link do Unsplash pode sumir, e a mesma foto não pode servir para duas receitas (o teste confere). Fotos de outro host funcionam, mas o front só otimiza as do `images.unsplash.com`.
