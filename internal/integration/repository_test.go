@@ -145,9 +145,9 @@ func TestSeed(t *testing.T) {
 	}
 	first := counts()
 	assert.Equal(t, int64(3), first["users"])
-	assert.Equal(t, int64(10), first["recipes"])
-	assert.Equal(t, int64(14), first["comments"])
-	assert.Equal(t, int64(7), first["favorite_recipes"])
+	assert.Equal(t, int64(18), first["recipes"])
+	assert.Equal(t, int64(23), first["comments"])
+	assert.Equal(t, int64(10), first["favorite_recipes"])
 
 	var notNormalized int64
 	require.NoError(t, db.Raw("SELECT count(*) FROM ingredients WHERE name <> lower(name)").Scan(&notNormalized).Error)

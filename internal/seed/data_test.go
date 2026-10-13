@@ -67,3 +67,20 @@ func TestDemoPassword_TamanhoAceito(t *testing.T) {
 	assert.GreaterOrEqual(t, len(DemoPassword), 10)
 	assert.LessOrEqual(t, len(DemoPassword), service.MaxPasswordBytes)
 }
+
+// Cada receita tem foto própria: a mesma foto em dois pratos é sinal de link
+// copiado e esquecido.
+func TestDemoRecipes_FotosENomesUnicos(t *testing.T) {
+	names := map[string]bool{}
+	images := map[string]string{}
+	for _, r := range demoRecipes {
+		assert.Falsef(t, names[r.recipe.Name], "receita repetida: %q", r.recipe.Name)
+		names[r.recipe.Name] = true
+		assert.NotEmptyf(t, r.images, "receita sem foto: %q", r.recipe.Name)
+		for _, url := range r.images {
+			other, dup := images[url]
+			assert.Falsef(t, dup, "%q e %q usam a mesma foto", other, r.recipe.Name)
+			images[url] = r.recipe.Name
+		}
+	}
+}
