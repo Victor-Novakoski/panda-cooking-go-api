@@ -31,7 +31,7 @@ func (h *UploadHandler) Create(c *gin.Context) {
 		respondError(c, service.ErrUploadEmpty)
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Lê um byte além do limite só para saber que passou dele.
 	data, err := io.ReadAll(io.LimitReader(file, service.MaxUploadBytes+1))
