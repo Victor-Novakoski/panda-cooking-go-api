@@ -157,6 +157,8 @@ curl -s $API/recipes -H "Authorization: Bearer $TOKEN" --json '{"name":"X","ingr
 | POST | `/api/recipes/{id}/comments` | logado |
 | PATCH, DELETE | `/api/comments/{id}` | o autor do comentário (apagar: também o admin) |
 | GET, POST, DELETE | `/api/favorites/{recipeID}` | logado |
+| POST | `/api/uploads` | logado: envia uma foto (multipart, até 900 KB) e recebe o endereço `/api/uploads/{id}` |
+| GET | `/api/uploads/{id}` | público: a foto enviada |
 
 </details>
 

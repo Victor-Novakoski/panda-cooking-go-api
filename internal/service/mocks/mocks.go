@@ -11,4 +11,5 @@ var (
 	_ repository.CommentRepo  = (*CommentRepoMock)(nil)
 	_ repository.FavoriteRepo = (*FavoriteRepoMock)(nil)
 	_ repository.SessionRepo  = (*SessionRepoMock)(nil)
+	_ repository.UploadRepo   = (*UploadRepoMock)(nil)
 )

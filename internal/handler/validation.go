@@ -8,6 +8,9 @@ import (
 	"strings"
 	"sync"
 
+	"panda-cooking-go-api/internal/repository"
+	"panda-cooking-go-api/internal/service"
+
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 )
@@ -16,7 +19,7 @@ var setupValidator sync.Once
 
 // SetupValidator configura o validador do Gin: os erros citam o campo pelo
 // nome do JSON (ou da query string), não pelo nome da struct em Go, e a
-// tag httpsurl confere links de imagem.
+// tag imageurl confere links de imagem.
 func SetupValidator() {
 	setupValidator.Do(func() {
 		v, ok := binding.Validator.Engine().(*validator.Validate)
@@ -35,7 +38,7 @@ func SetupValidator() {
 			}
 			return ""
 		})
-		if err := v.RegisterValidation("httpsurl", isHTTPSURL); err != nil {
+		if err := v.RegisterValidation("imageurl", isImageURL); err != nil {
 			panic(err)
 		}
 	})
@@ -44,8 +47,7 @@ func SetupValidator() {
 // isHTTPSURL aceita só link https com host e sem usuário ou senha embutidos.
 // Vazio passa: "obrigatório" é conferido pelo required. Só https porque o
 // site roda em https e imagem http seria bloqueada como conteúdo misto.
-func isHTTPSURL(fl validator.FieldLevel) bool {
-	s := fl.Field().String()
+func isHTTPSURL(s string) bool {
 	if s == "" {
 		return true
 	}
@@ -54,6 +56,16 @@ func isHTTPSURL(fl validator.FieldLevel) bool {
 	}
 	u, err := url.Parse(s)
 	return err == nil && u.Scheme == "https" && u.Hostname() != "" && u.User == nil
+}
+
+// isImageURL aceita link https ou o endereço de uma foto enviada para a
+// própria API (/api/uploads/{id}).
+func isImageURL(fl validator.FieldLevel) bool {
+	s := fl.Field().String()
+	if id, ok := strings.CutPrefix(s, service.UploadPathPrefix); ok {
+		return repository.IsUUID(id)
+	}
+	return isHTTPSURL(s)
 }
 
 // fieldErrors traduz os erros do validador para {campo: mensagem}.
@@ -93,7 +105,7 @@ func fieldMessage(fe validator.FieldError) string {
 		return "campo obrigatório"
 	case "email":
 		return "e-mail inválido"
-	case "httpsurl":
+	case "imageurl":
 		return "use um link que comece com https://"
 	case "uuid":
 		return "id inválido"
