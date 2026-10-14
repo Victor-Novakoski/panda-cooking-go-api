@@ -43,6 +43,16 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
+// GetPublic é o perfil público de qualquer pessoa, sem login.
+func (h *UserHandler) GetPublic(c *gin.Context) {
+	user, err := h.users.GetPublic(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, user)
+}
+
 func (h *UserHandler) Update(c *gin.Context) {
 	var input service.UpdateUserInput
 	if !bindJSON(c, &input) {

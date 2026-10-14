@@ -3,7 +3,9 @@ package server_test
 import (
 	"context"
 	"errors"
+	"maps"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 
@@ -201,6 +203,31 @@ func TestProfile(t *testing.T) {
 		require.Equal(t, http.StatusOK, w.Code)
 		assert.NotContains(t, w.Body.String(), "hash-secreto")
 		assert.Equal(t, "maria@email.com", decode[map[string]any](t, w)["email"])
+	})
+
+	t.Run("perfil público sai sem login, sem e-mail e sem dizer quem é admin", func(t *testing.T) {
+		e := newEnv(t)
+		e.users.FindByIDFn = func(_ context.Context, id string) (*model.User, error) {
+			assert.Equal(t, userID, id)
+			return &model.User{ID: userID, Name: "Maria", Email: "maria@email.com", PasswordHash: "hash-secreto", IsAdm: true}, nil
+		}
+
+		w := e.do(http.MethodGet, "/api/users/"+userID, nil)
+
+		require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+		body := decode[map[string]any](t, w)
+		assert.Equal(t, "Maria", body["name"])
+		assert.ElementsMatch(t, []string{"id", "name", "image_profile", "created_at"}, slices.Collect(maps.Keys(body)))
+	})
+
+	t.Run("perfil público de quem não existe é 404", func(t *testing.T) {
+		e := newEnv(t)
+		e.users.FindByIDFn = func(context.Context, string) (*model.User, error) { return nil, gorm.ErrRecordNotFound }
+
+		w := e.do(http.MethodGet, "/api/users/"+otherID, nil)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+		assert.Equal(t, "usuário não encontrado", decode[errorBody](t, w).Error)
 	})
 
 	t.Run("foto precisa ser https", func(t *testing.T) {

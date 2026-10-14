@@ -295,3 +295,25 @@ func TestDeleteAccount(t *testing.T) {
 	status, _ = maria.call(http.MethodGet, "/api/users/profile", nil)
 	assert.Equal(t, http.StatusNotFound, status)
 }
+
+func TestPublicProfile(t *testing.T) {
+	reset(t)
+	srv := newAPI(t)
+	maria := newClient(t, srv).signup("Maria", "maria@email.com", password)
+	visitor := newClient(t, srv)
+
+	status, body := visitor.call(http.MethodGet, "/api/users/"+maria.ID, nil)
+	require.Equal(t, http.StatusOK, status, string(body))
+	assert.Contains(t, string(body), `"name":"Maria"`)
+	assert.NotContains(t, string(body), "maria@email.com", "o e-mail não é público")
+	assert.NotContains(t, string(body), "is_adm")
+
+	for _, id := range []string{"00000000-0000-4000-8000-000000000000", "abc", "profile-nao-existe"} {
+		status, _ = visitor.call(http.MethodGet, "/api/users/"+id, nil)
+		assert.Equal(t, http.StatusNotFound, status, id)
+	}
+
+	// "profile" continua sendo a rota do próprio perfil, com login
+	status, _ = visitor.call(http.MethodGet, "/api/users/profile", nil)
+	assert.Equal(t, http.StatusUnauthorized, status)
+}

@@ -241,6 +241,25 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "422": { $ref: "#/components/responses/Validation" }
 
+  /api/users/{id}:
+    get:
+      tags: [Usuários]
+      summary: Ver o perfil público de uma pessoa
+      description: O que qualquer visitante pode ver. As receitas dela saem em `GET /api/recipes?user_id=`.
+      operationId: getPublicUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Perfil público.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicUser" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /api/categories:
     get:
       tags: [Receitas]
@@ -888,6 +907,16 @@ components:
         email: { type: string, format: email }
         image_profile: { type: string, description: Link da foto; vazio quando não tem. }
         is_adm: { type: boolean }
+        created_at: { type: string, format: date-time }
+
+    PublicUser:
+      type: object
+      description: Perfil que qualquer visitante vê. Sem e-mail.
+      required: [id, name, image_profile, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        image_profile: { type: string, description: Link da foto; vazio quando não tem. }
         created_at: { type: string, format: date-time }
 
     Author:

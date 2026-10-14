@@ -18,6 +18,15 @@ type UserResponse struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
+// PublicUserResponse é a página pública de uma pessoa: o que qualquer
+// visitante pode ver. Sem e-mail e sem dizer se é admin.
+type PublicUserResponse struct {
+	ID           string    `json:"id"`
+	Name         string    `json:"name"`
+	ImageProfile string    `json:"image_profile"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
 // AuthorResponse é o autor de receita ou comentário: só o que é público.
 type AuthorResponse struct {
 	ID           string `json:"id"`
