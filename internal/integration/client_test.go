@@ -143,7 +143,8 @@ type recipe struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	Time        string `json:"time"`
+	TimeMinutes int    `json:"time_minutes"`
+	VideoURL    string `json:"video_url"`
 	Portions    int    `json:"portions"`
 	ImageURL    string `json:"image_url"`
 	Category    struct {
@@ -205,7 +206,7 @@ func recipeBody(name, description string, categoryID uint, ingredients ...string
 	return map[string]any{
 		"name":         name,
 		"description":  description,
-		"time":         "30 minutos",
+		"time_minutes": 30,
 		"portions":     4,
 		"category_id":  categoryID,
 		"images":       []map[string]string{{"url": "https://img.exemplo.com/" + slug(name) + ".jpg"}},

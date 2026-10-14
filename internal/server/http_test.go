@@ -23,7 +23,7 @@ func validRecipe() map[string]any {
 	return map[string]any{
 		"name":         "Bolo de fubá",
 		"description":  "Bolo simples de fubá com erva-doce.",
-		"time":         "50 minutos",
+		"time_minutes": 50,
 		"portions":     8,
 		"category_id":  12,
 		"images":       []map[string]string{{"url": "https://img.exemplo.com/bolo.jpg"}},
@@ -34,7 +34,7 @@ func validRecipe() map[string]any {
 
 func storedRecipe() *model.Recipe {
 	return &model.Recipe{
-		ID: recipeID, Name: "Bolo de fubá", Description: "Bolo simples de fubá com erva-doce.", Time: "50 minutos",
+		ID: recipeID, Name: "Bolo de fubá", Description: "Bolo simples de fubá com erva-doce.", TimeMinutes: 50,
 		Portions: 8, UserID: userID, CategoryID: 12,
 		User:     model.User{ID: userID, Name: "Maria", Email: "maria@email.com", PasswordHash: "hash-secreto"},
 		Category: model.Category{ID: 12, Name: "Pães e Bolos"},
@@ -70,7 +70,7 @@ func TestValidation(t *testing.T) {
 			wantFields: map[string]string{
 				"name":         "use pelo menos 3 caracteres",
 				"description":  "use pelo menos 10 caracteres",
-				"time":         "campo obrigatório",
+				"time_minutes": "campo obrigatório",
 				"portions":     "campo obrigatório",
 				"category_id":  "campo obrigatório",
 				"ingredients":  "adicione pelo menos um item",
@@ -96,10 +96,32 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name:       "só espaços conta como vazio",
-			body:       func() map[string]any { r := validRecipe(); r["time"] = "   "; return r }(),
+			body:       func() map[string]any { r := validRecipe(); r["name"] = "   "; return r }(),
 			wantStatus: http.StatusUnprocessableEntity,
 			wantError:  "dados inválidos",
-			wantFields: map[string]string{"time": "campo obrigatório"},
+			wantFields: map[string]string{"name": "campo obrigatório"},
+		},
+		{
+			name: "tempo fora do limite e vídeo que não é do YouTube",
+			body: func() map[string]any {
+				r := validRecipe()
+				r["time_minutes"] = 2881
+				r["video_url"] = "https://vimeo.com/123456789"
+				return r
+			}(),
+			wantStatus: http.StatusUnprocessableEntity,
+			wantError:  "dados inválidos",
+			wantFields: map[string]string{
+				"time_minutes": "o máximo é 2880",
+				"video_url":    "use um link de vídeo do YouTube",
+			},
+		},
+		{
+			name:       "tempo em texto, como era antes, é recusado",
+			body:       func() map[string]any { r := validRecipe(); r["time_minutes"] = "50 minutos"; return r }(),
+			wantStatus: http.StatusUnprocessableEntity,
+			wantError:  "dados inválidos",
+			wantFields: map[string]string{"time_minutes": "tipo de valor inválido"},
 		},
 		{
 			name:       "campo desconhecido é recusado",
@@ -253,12 +275,14 @@ func TestRecipes(t *testing.T) {
 	t.Run("listagem pública com filtros", func(t *testing.T) {
 		e := newEnv(t)
 		e.recipes.ListFn = func(_ context.Context, f repository.RecipeFilter, p repository.Page) ([]model.Recipe, int64, error) {
-			assert.Equal(t, repository.RecipeFilter{Search: "pão de queijo", CategoryID: 12, UserID: userID}, f)
+			assert.Equal(t, repository.RecipeFilter{
+				Search: "pão de queijo", CategoryID: 12, UserID: userID, MaxTimeMinutes: 30, Sort: repository.SortQuickest,
+			}, f)
 			assert.Equal(t, repository.Page{Number: 2, Size: 6}, p)
 			return []model.Recipe{*storedRecipe()}, 7, nil
 		}
 
-		w := e.do(http.MethodGet, "/api/recipes?search=+p%C3%A3o++de+queijo&category_id=12&user_id="+userID+"&page=2&per_page=6", nil)
+		w := e.do(http.MethodGet, "/api/recipes?search=+p%C3%A3o++de+queijo&category_id=12&user_id="+userID+"&max_time=30&sort=quickest&page=2&per_page=6", nil)
 
 		require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 		page := decode[map[string]any](t, w)
@@ -267,12 +291,14 @@ func TestRecipes(t *testing.T) {
 	})
 
 	t.Run("parâmetros inválidos da listagem", func(t *testing.T) {
-		w := newEnv(t).do(http.MethodGet, "/api/recipes?per_page=500&user_id=abc&search="+strings.Repeat("a", 101), nil)
+		w := newEnv(t).do(http.MethodGet, "/api/recipes?per_page=500&user_id=abc&sort=aleatoria&max_time=5000&search="+strings.Repeat("a", 101), nil)
 
 		require.Equal(t, http.StatusUnprocessableEntity, w.Code)
 		assert.Equal(t, map[string]string{
 			"per_page": "o máximo é 50",
 			"user_id":  "id inválido",
+			"sort":     "valor inválido",
+			"max_time": "o máximo é 2880",
 			"search":   "use no máximo 100 caracteres",
 		}, decode[errorBody](t, w).Fields)
 	})
@@ -296,6 +322,49 @@ func TestRecipes(t *testing.T) {
 
 		require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
 		assert.Equal(t, recipeID, decode[map[string]any](t, w)["id"])
+	})
+
+	t.Run("guarda o vídeo sempre no mesmo formato e devolve o tempo em minutos", func(t *testing.T) {
+		e := newEnv(t)
+		var saved *model.Recipe
+		e.categories.ExistsFn = func(context.Context, uint) (bool, error) { return true, nil }
+		e.recipes.CreateFn = func(_ context.Context, r *model.Recipe) error {
+			r.ID = recipeID
+			saved = r
+			return nil
+		}
+		e.recipes.FindByIDFn = func(context.Context, string) (*model.Recipe, error) {
+			r := storedRecipe()
+			r.VideoURL = saved.VideoURL
+			return r, nil
+		}
+		body := validRecipe()
+		body["video_url"] = "  https://youtu.be/dQw4w9WgXcQ?si=rastreio  "
+
+		w := e.as(userID, false, http.MethodPost, "/api/recipes", body)
+
+		require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+		assert.Equal(t, "https://www.youtube.com/watch?v=dQw4w9WgXcQ", saved.VideoURL)
+		got := decode[map[string]any](t, w)
+		assert.Equal(t, "https://www.youtube.com/watch?v=dQw4w9WgXcQ", got["video_url"])
+		assert.InDelta(t, 50, got["time_minutes"], 0)
+		assert.NotContains(t, got, "time")
+	})
+
+	t.Run("PATCH com vídeo vazio tira o vídeo", func(t *testing.T) {
+		e := newEnv(t)
+		stored := storedRecipe()
+		stored.VideoURL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+		e.recipes.FindByIDFn = func(context.Context, string) (*model.Recipe, error) { return stored, nil }
+		e.recipes.UpdateFn = func(_ context.Context, r *model.Recipe) error {
+			assert.Empty(t, r.VideoURL)
+			assert.Equal(t, 15, r.TimeMinutes)
+			return nil
+		}
+
+		w := e.as(userID, false, http.MethodPatch, "/api/recipes/"+recipeID, map[string]any{"video_url": "", "time_minutes": 15})
+
+		require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 	})
 
 	t.Run("criar sem login é 401", func(t *testing.T) {

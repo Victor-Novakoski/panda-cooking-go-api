@@ -109,6 +109,70 @@ func TestRecipeSearchAndPagination(t *testing.T) {
 	assert.Equal(t, []string{"Bolo 100% integral"}, names(list(fmt.Sprintf("category_id=%d&search=bolo&user_id=%s", catPaes, mariaUser.ID)).Items))
 }
 
+func TestRecipeSortTimeAndVideo(t *testing.T) {
+	reset(t)
+	srv := newAPI(t)
+	maria := newClient(t, srv)
+	maria.signup("Maria", "maria@email.com", password)
+	maria.login("maria@email.com", password)
+	joao := newClient(t, srv)
+	joao.signup("João", "joao@email.com", password)
+	joao.login("joao@email.com", password)
+
+	create := func(name string, minutes int) recipe {
+		body := recipeBody(name, "Uma receita qualquer de teste.", catSalgados)
+		body["time_minutes"] = minutes
+		var r recipe
+		maria.must(http.MethodPost, "/api/recipes", body, http.StatusCreated, &r)
+		return r
+	}
+	feijoada := create("Feijoada", 180)
+	omelete := create("Omelete", 10)
+	lasanha := create("Lasanha", 90)
+	create("Tapioca", 10)
+
+	list := func(query string) []string {
+		var p page[recipe]
+		maria.must(http.MethodGet, "/api/recipes?"+query, nil, http.StatusOK, &p)
+		return names(p.Items)
+	}
+
+	assert.Equal(t, []string{"Tapioca", "Lasanha", "Omelete", "Feijoada"}, list(""), "sem sort: as mais novas")
+	assert.Equal(t, []string{"Tapioca", "Lasanha", "Omelete", "Feijoada"}, list("sort=recent"))
+	assert.Equal(t, []string{"Tapioca", "Omelete", "Lasanha", "Feijoada"}, list("sort=quickest"), "empate desfeito pela mais nova")
+	assert.Equal(t, []string{"Tapioca", "Omelete"}, list("max_time=10"))
+	assert.Equal(t, []string{"Tapioca", "Lasanha", "Omelete"}, list("max_time=90"), "até 90 minutos, inclusive")
+	assert.Equal(t, []string{"Lasanha"}, list("max_time=90&sort=quickest&per_page=2&page=2"), "filtro, ordem e página juntos")
+
+	maria.must(http.MethodPost, "/api/favorites/"+lasanha.ID, nil, http.StatusCreated, nil)
+	joao.must(http.MethodPost, "/api/favorites/"+lasanha.ID, nil, http.StatusCreated, nil)
+	joao.must(http.MethodPost, "/api/favorites/"+feijoada.ID, nil, http.StatusCreated, nil)
+	assert.Equal(t, []string{"Lasanha", "Feijoada", "Tapioca", "Omelete"}, list("sort=favorites"), "sem favorito: as mais novas")
+
+	// vídeo: guarda o link limpo, troca, tira e recusa o que não é YouTube
+	assert.Empty(t, omelete.VideoURL)
+	assert.Equal(t, 10, omelete.TimeMinutes)
+	var got recipe
+	maria.must(http.MethodPatch, "/api/recipes/"+omelete.ID, map[string]any{"video_url": "https://youtu.be/dQw4w9WgXcQ?si=abc&t=10"}, http.StatusOK, &got)
+	assert.Equal(t, "https://www.youtube.com/watch?v=dQw4w9WgXcQ", got.VideoURL)
+	maria.must(http.MethodGet, "/api/recipes/"+omelete.ID, nil, http.StatusOK, &got)
+	assert.Equal(t, "https://www.youtube.com/watch?v=dQw4w9WgXcQ", got.VideoURL, "ficou gravado")
+
+	body := recipeBody("Omelete", "Omelete com queijo e cebolinha.", catSalgados)
+	body["video_url"] = "https://www.youtube.com/shorts/aaaaaaaaaaa"
+	maria.must(http.MethodPut, "/api/recipes/"+omelete.ID, body, http.StatusOK, &got)
+	assert.Equal(t, "https://www.youtube.com/watch?v=aaaaaaaaaaa", got.VideoURL)
+	assert.Equal(t, 30, got.TimeMinutes)
+
+	status, raw := maria.call(http.MethodPatch, "/api/recipes/"+omelete.ID, map[string]any{"video_url": "https://evil.com/watch?v=dQw4w9WgXcQ"})
+	assert.Equal(t, http.StatusUnprocessableEntity, status)
+	assert.Contains(t, string(raw), "use um link de vídeo do YouTube")
+
+	delete(body, "video_url")
+	maria.must(http.MethodPut, "/api/recipes/"+omelete.ID, body, http.StatusOK, &got)
+	assert.Empty(t, got.VideoURL, "PUT sem vídeo tira o vídeo")
+}
+
 func TestRecipeLifecycle(t *testing.T) {
 	reset(t)
 	srv := newAPI(t)

@@ -36,8 +36,22 @@ func (r *RecipeRepository) Create(ctx context.Context, recipe *model.Recipe) err
 	})
 }
 
-// List devolve uma página de receitas, das mais novas para as mais antigas,
-// e o total que bate com os filtros.
+// recipeOrder é o ORDER BY de cada ordenação. O desempate é sempre pelas
+// mais novas, para a paginação não repetir nem pular receita.
+func recipeOrder(sort RecipeSort) string {
+	const newest = "created_at DESC, id DESC"
+	switch sort {
+	case SortQuickest:
+		return "time_minutes ASC, " + newest
+	case SortFavorites:
+		return "(SELECT count(*) FROM favorite_recipes WHERE favorite_recipes.recipe_id = recipes.id) DESC, " + newest
+	default:
+		return newest
+	}
+}
+
+// List devolve uma página de receitas na ordem pedida (as mais novas
+// primeiro, se nenhuma) e o total que bate com os filtros.
 func (r *RecipeRepository) List(ctx context.Context, filter RecipeFilter, page Page) ([]model.Recipe, int64, error) {
 	db := r.db.WithContext(ctx).Model(&model.Recipe{})
 	if filter.Search != "" {
@@ -54,6 +68,9 @@ func (r *RecipeRepository) List(ctx context.Context, filter RecipeFilter, page P
 		}
 		db = db.Where("user_id = ?", filter.UserID)
 	}
+	if filter.MaxTimeMinutes > 0 {
+		db = db.Where("time_minutes <= ?", filter.MaxTimeMinutes)
+	}
 	db = db.Session(&gorm.Session{})
 
 	var total int64
@@ -63,7 +80,7 @@ func (r *RecipeRepository) List(ctx context.Context, filter RecipeFilter, page P
 
 	var recipes []model.Recipe
 	err := preloadSummary(db).
-		Order("created_at DESC, id DESC").
+		Order(recipeOrder(filter.Sort)).
 		Limit(page.Size).Offset(page.offset()).
 		Find(&recipes).Error
 	return recipes, total, err
@@ -98,7 +115,7 @@ func (r *RecipeRepository) Exists(ctx context.Context, id string) (bool, error) 
 // gravava a Category carregada pelo Preload e voltava o category_id.
 func (r *RecipeRepository) Update(ctx context.Context, recipe *model.Recipe) error {
 	return r.db.WithContext(ctx).Model(&model.Recipe{ID: recipe.ID}).
-		Select("Name", "Description", "Time", "Portions", "CategoryID", "UpdatedAt").
+		Select("Name", "Description", "TimeMinutes", "Portions", "VideoURL", "CategoryID", "UpdatedAt").
 		Updates(recipe).Error
 }
 

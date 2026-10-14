@@ -41,6 +41,9 @@ func SetupValidator() {
 		if err := v.RegisterValidation("imageurl", isImageURL); err != nil {
 			panic(err)
 		}
+		if err := v.RegisterValidation("youtubeurl", isYouTubeURL); err != nil {
+			panic(err)
+		}
 	})
 }
 
@@ -66,6 +69,17 @@ func isImageURL(fl validator.FieldLevel) bool {
 		return repository.IsUUID(id)
 	}
 	return isHTTPSURL(s)
+}
+
+// isYouTubeURL aceita só link de vídeo do YouTube. Vazio passa: a receita
+// não precisa ter vídeo.
+func isYouTubeURL(fl validator.FieldLevel) bool {
+	s := fl.Field().String()
+	if s == "" {
+		return true
+	}
+	_, ok := service.YouTubeID(s)
+	return ok
 }
 
 // fieldErrors traduz os erros do validador para {campo: mensagem}.
@@ -107,6 +121,8 @@ func fieldMessage(fe validator.FieldError) string {
 		return "e-mail inválido"
 	case "imageurl":
 		return "use um link que comece com https://"
+	case "youtubeurl":
+		return "use um link de vídeo do YouTube"
 	case "uuid":
 		return "id inválido"
 	case "min":

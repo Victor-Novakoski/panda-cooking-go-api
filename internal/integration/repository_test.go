@@ -189,6 +189,62 @@ func TestMigrations(t *testing.T) {
 		assert.NoError(t, database.Migrate(ctx, db, dbURL))
 	})
 
+	t.Run("tempo em texto vira minutos", func(t *testing.T) {
+		reset(t)
+		src, err := iofs.New(os.DirFS("../database/migrations"), ".")
+		require.NoError(t, err)
+		m, err := migrate.NewWithSourceInstance("iofs", src, "pgx5://"+dbURL[len("postgres://"):])
+		require.NoError(t, err)
+		defer func() { _, _ = m.Close() }()
+		// volta para antes da migration 000005, quando o tempo era texto
+		require.NoError(t, m.Migrate(4))
+		// a volta para a versão atual não pode depender do resto do teste
+		t.Cleanup(func() { require.NoError(t, database.Migrate(ctx, db, dbURL)) })
+
+		author := createUser(t, "tempo@email.com")
+		times := map[string]int{
+			"40":                  40,
+			"20 minutos":          20,
+			"45 min":              45,
+			"1 hora":              60,
+			"3 horas":             180,
+			"1h 30min":            90,
+			"1H30":                90,
+			"2 horas e 15":        135,
+			"1 hora e 20 minutos": 80,
+			"rapidinho":           30, // não dá para entender: meia hora
+			"0 minutos":           30,
+			"99 horas":            2880, // nada passa de dois dias
+			"99999999999 min":     2880,
+		}
+		for text := range times {
+			require.NoError(t, db.Exec(
+				"INSERT INTO recipes (name, description, time, portions, user_id, category_id) VALUES (?, 'descrição', ?, 1, ?, 1)",
+				text, text, author.ID).Error)
+		}
+
+		require.NoError(t, m.Up())
+
+		var rows []struct {
+			Name        string
+			TimeMinutes int
+			VideoURL    string
+		}
+		require.NoError(t, db.Raw("SELECT name, time_minutes, video_url FROM recipes").Scan(&rows).Error)
+		require.Len(t, rows, len(times))
+		for _, row := range rows {
+			assert.Equal(t, times[row.Name], row.TimeMinutes, row.Name)
+			assert.Empty(t, row.VideoURL)
+		}
+
+		// e a volta devolve um texto legível
+		require.NoError(t, m.Migrate(4))
+		var back string
+		require.NoError(t, db.Raw("SELECT time FROM recipes WHERE name = '1h 30min'").Scan(&back).Error)
+		assert.Equal(t, "1h 30min", back)
+		require.NoError(t, db.Exec("DELETE FROM recipes").Error)
+	})
+
 	t.Run("recusa banco criado pela versão antiga", func(t *testing.T) {
 		if err := db.Exec("CREATE DATABASE panda_legacy_test").Error; err != nil {
 			t.Skip("sem permissão para criar banco:", err)

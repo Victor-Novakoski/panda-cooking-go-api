@@ -49,7 +49,13 @@ func (s *RecipeService) Create(ctx context.Context, userID string, input RecipeI
 
 func (s *RecipeService) List(ctx context.Context, q ListRecipesQuery) (Page[RecipeSummary], error) {
 	page := PageQuery{Page: q.Page, PerPage: q.PerPage}.repo(DefaultRecipesPerPage)
-	filter := repository.RecipeFilter{Search: q.Search, CategoryID: q.CategoryID, UserID: q.UserID}
+	filter := repository.RecipeFilter{
+		Search:         q.Search,
+		CategoryID:     q.CategoryID,
+		UserID:         q.UserID,
+		MaxTimeMinutes: q.MaxTime,
+		Sort:           repository.RecipeSort(q.Sort),
+	}
 
 	recipes, total, err := s.repo.List(ctx, filter, page)
 	if err != nil {
@@ -80,8 +86,11 @@ func (s *RecipeService) Update(ctx context.Context, recipeID, userID string, inp
 	if input.Description != nil {
 		recipe.Description = *input.Description
 	}
-	if input.Time != nil {
-		recipe.Time = *input.Time
+	if input.TimeMinutes != nil {
+		recipe.TimeMinutes = *input.TimeMinutes
+	}
+	if input.VideoURL != nil {
+		recipe.VideoURL = canonicalVideoURL(*input.VideoURL)
 	}
 	if input.Portions != nil {
 		recipe.Portions = *input.Portions
@@ -319,7 +328,8 @@ func toRecipeModel(input RecipeInput) *model.Recipe {
 	recipe := &model.Recipe{
 		Name:        input.Name,
 		Description: input.Description,
-		Time:        input.Time,
+		TimeMinutes: input.TimeMinutes,
+		VideoURL:    canonicalVideoURL(input.VideoURL),
 		Portions:    input.Portions,
 		CategoryID:  input.CategoryID,
 	}

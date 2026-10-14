@@ -44,7 +44,7 @@ type RecipeSummary struct {
 	ID          string           `json:"id"`
 	Name        string           `json:"name"`
 	Description string           `json:"description"`
-	Time        string           `json:"time"`
+	TimeMinutes int              `json:"time_minutes"`
 	Portions    int              `json:"portions"`
 	ImageURL    string           `json:"image_url"`
 	Category    CategoryResponse `json:"category"`
@@ -56,8 +56,9 @@ type RecipeResponse struct {
 	ID           string                     `json:"id"`
 	Name         string                     `json:"name"`
 	Description  string                     `json:"description"`
-	Time         string                     `json:"time"`
+	TimeMinutes  int                        `json:"time_minutes"`
 	Portions     int                        `json:"portions"`
+	VideoURL     string                     `json:"video_url"`
 	Category     CategoryResponse           `json:"category"`
 	Author       AuthorResponse             `json:"author"`
 	Images       []ImageRecipeResponse      `json:"images"`
@@ -112,7 +113,7 @@ func toRecipeSummary(r model.Recipe) RecipeSummary {
 		ID:          r.ID,
 		Name:        r.Name,
 		Description: r.Description,
-		Time:        r.Time,
+		TimeMinutes: r.TimeMinutes,
 		Portions:    r.Portions,
 		Category:    CategoryResponse{ID: r.Category.ID, Name: r.Category.Name},
 		Author:      toAuthor(r.User),
@@ -139,8 +140,9 @@ func toRecipeResponse(r model.Recipe) RecipeResponse {
 		ID:           r.ID,
 		Name:         r.Name,
 		Description:  r.Description,
-		Time:         r.Time,
+		TimeMinutes:  r.TimeMinutes,
 		Portions:     r.Portions,
+		VideoURL:     r.VideoURL,
 		Category:     CategoryResponse{ID: r.Category.ID, Name: r.Category.Name},
 		Author:       toAuthor(r.User),
 		Images:       make([]ImageRecipeResponse, 0, len(r.Images)),

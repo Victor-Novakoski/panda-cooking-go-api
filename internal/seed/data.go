@@ -38,7 +38,7 @@ var demoRecipes = []demoRecipe{
 		recipe: model.Recipe{
 			Name:        "Brigadeiro Tradicional",
 			Description: "O docinho mais amado do Brasil! Cremoso, chocolatudo e perfeito para qualquer festa.",
-			Time:        "20 minutos",
+			TimeMinutes: 20,
 			Portions:    30,
 		},
 		author:   0,
@@ -70,7 +70,7 @@ var demoRecipes = []demoRecipe{
 		recipe: model.Recipe{
 			Name:        "Coxinha de Frango",
 			Description: "Salgado brasileiro clássico, com massa cremosa e recheio suculento de frango desfiado.",
-			Time:        "1h 30min",
+			TimeMinutes: 90,
 			Portions:    25,
 		},
 		author:   1,
@@ -113,7 +113,7 @@ var demoRecipes = []demoRecipe{
 		recipe: model.Recipe{
 			Name:        "Feijoada Completa",
 			Description: "Prato tradicional brasileiro, perfeito para reunir a família. Rica em sabores e muito suculenta!",
-			Time:        "3 horas",
+			TimeMinutes: 180,
 			Portions:    10,
 		},
 		author:   0,
@@ -154,7 +154,7 @@ var demoRecipes = []demoRecipe{
 		recipe: model.Recipe{
 			Name:        "Pão de Queijo Mineiro",
 			Description: "Clássico de Minas Gerais! Crocante por fora, macio por dentro e com aquele sabor inconfundível de queijo.",
-			Time:        "40 minutos",
+			TimeMinutes: 40,
 			Portions:    40,
 		},
 		author:   2,
@@ -190,7 +190,7 @@ var demoRecipes = []demoRecipe{
 		recipe: model.Recipe{
 			Name:        "Moqueca Capixaba",
 			Description: "Ensopado de peixe com urucum, tomate e cheiro-verde. Leve, saboroso e aromático!",
-			Time:        "50 minutos",
+			TimeMinutes: 50,
 			Portions:    6,
 		},
 		author:   0,
@@ -232,7 +232,7 @@ var demoRecipes = []demoRecipe{
 		recipe: model.Recipe{
 			Name:        "Bolo de Cenoura com Cobertura de Chocolate",
 			Description: "Bolo fofinho e úmido de cenoura com aquela cobertura de chocolate cremosa que derrete na boca!",
-			Time:        "1 hora",
+			TimeMinutes: 60,
 			Portions:    12,
 		},
 		author:   2,
@@ -273,7 +273,7 @@ var demoRecipes = []demoRecipe{
 		recipe: model.Recipe{
 			Name:        "Estrogonofe de Frango",
 			Description: "Cremoso e saboroso, esse prato é sempre um sucesso! Perfeito para almoços especiais.",
-			Time:        "40 minutos",
+			TimeMinutes: 40,
 			Portions:    6,
 		},
 		author:   1,
@@ -315,7 +315,7 @@ var demoRecipes = []demoRecipe{
 		recipe: model.Recipe{
 			Name:        "Açaí na Tigela",
 			Description: "Refrescante e energético! Bowl de açaí cremoso com granola, banana e mel. Perfeito para o café da manhã ou lanche.",
-			Time:        "10 minutos",
+			TimeMinutes: 10,
 			Portions:    2,
 		},
 		author:   2,
@@ -350,7 +350,7 @@ var demoRecipes = []demoRecipe{
 		recipe: model.Recipe{
 			Name:        "Lasanha à Bolonhesa",
 			Description: "Lasanha tradicional com molho bolonhesa rico, molho branco cremoso e muito queijo. Conforto em forma de comida!",
-			Time:        "1h 30min",
+			TimeMinutes: 90,
 			Portions:    8,
 		},
 		author:   0,
@@ -394,7 +394,7 @@ var demoRecipes = []demoRecipe{
 		recipe: model.Recipe{
 			Name:        "Pudim de Leite Condensado",
 			Description: "Clássico brasileiro! Sobremesa cremosa e suave com aquela calda de caramelo irresistível.",
-			Time:        "1h 20min",
+			TimeMinutes: 80,
 			Portions:    10,
 		},
 		author:   1,
@@ -429,7 +429,7 @@ var demoRecipes = []demoRecipe{
 		recipe: model.Recipe{
 			Name:        "Picanha na Chapa",
 			Description: "O corte preferido do churrasco brasileiro, selado na chapa com a capa de gordura crocante e o miolo rosado.",
-			Time:        "30 minutos",
+			TimeMinutes: 30,
 			Portions:    4,
 		},
 		author:   1,
@@ -462,7 +462,7 @@ var demoRecipes = []demoRecipe{
 		recipe: model.Recipe{
 			Name:        "Frango Assado com Batatas",
 			Description: "Almoço de domingo: frango inteiro temperado na véspera, pele dourada e batatas assadas no próprio caldo.",
-			Time:        "1h 40min",
+			TimeMinutes: 100,
 			Portions:    6,
 		},
 		author:   2,
@@ -499,7 +499,7 @@ var demoRecipes = []demoRecipe{
 		recipe: model.Recipe{
 			Name:        "Nhoque de Batata ao Sugo",
 			Description: "Nhoque caseiro, leve e macio, com molho de tomate fresco, manjericão e mussarela derretida.",
-			Time:        "1h 10min",
+			TimeMinutes: 70,
 			Portions:    4,
 		},
 		author:   0,
@@ -536,7 +536,7 @@ var demoRecipes = []demoRecipe{
 		recipe: model.Recipe{
 			Name:        "Torta de Limão",
 			Description: "Massa amanteigada, creme azedinho de limão e merengue maçaricado por cima. Refrescante e linda.",
-			Time:        "1h 30min",
+			TimeMinutes: 90,
 			Portions:    10,
 		},
 		author:   2,
@@ -570,7 +570,7 @@ var demoRecipes = []demoRecipe{
 		recipe: model.Recipe{
 			Name:        "Salada de Palmito",
 			Description: "Salada colorida e rápida com palmito, tomate, ovos cozidos e um molho simples de limão e azeite.",
-			Time:        "20 minutos",
+			TimeMinutes: 20,
 			Portions:    4,
 		},
 		author:   0,
@@ -604,7 +604,7 @@ var demoRecipes = []demoRecipe{
 		recipe: model.Recipe{
 			Name:        "Curry de Grão-de-Bico",
 			Description: "Prato vegetariano cremoso com leite de coco, especiarias e grão-de-bico, servido com arroz soltinho.",
-			Time:        "40 minutos",
+			TimeMinutes: 40,
 			Portions:    4,
 		},
 		author:   2,
@@ -640,7 +640,7 @@ var demoRecipes = []demoRecipe{
 		recipe: model.Recipe{
 			Name:        "Bolinho de Bacalhau",
 			Description: "Petisco de boteco: crocante por fora, cremoso por dentro e cheio de bacalhau desfiado.",
-			Time:        "1 hora",
+			TimeMinutes: 60,
 			Portions:    30,
 		},
 		author:   1,
@@ -675,7 +675,7 @@ var demoRecipes = []demoRecipe{
 		recipe: model.Recipe{
 			Name:        "Caipirinha de Limão",
 			Description: "O drinque mais famoso do Brasil: limão, açúcar, gelo e cachaça. Simples e perfeito.",
-			Time:        "5 minutos",
+			TimeMinutes: 5,
 			Portions:    1,
 		},
 		author:   1,
