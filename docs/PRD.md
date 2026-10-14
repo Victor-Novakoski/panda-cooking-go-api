@@ -26,6 +26,9 @@ Uma rede de receitas: qualquer pessoa navega e lê receitas; quem cria conta pub
 | Comentários (dono edita; dono ou admin apaga) | ✅ |
 | Favoritos | ✅ |
 | Busca por nome e descrição (sem diferenciar acento) e filtro por categoria e autor | ✅ |
+| Ordenar (mais novas, mais rápidas, mais favoritadas) e filtrar por tempo de preparo | ✅ |
+| Vídeo da receita por link do YouTube | ✅ |
+| Perfil público de quem publica (nome, foto e receitas) | ✅ |
 | Upload de imagem (hoje é só URL) | 💭 a decidir |
 
 ## Fora do escopo por enquanto
