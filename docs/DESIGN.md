@@ -43,7 +43,8 @@ Especificação completa (rotas, corpos, respostas e erros) em [`api/openapi.yam
   {"items": [...], "page": 1, "per_page": 12, "total": 37, "total_pages": 4}
   ```
 
-- Mais novos primeiro. `GET /api/recipes` aceita `search` (nome e descrição, sem diferenciar acento nem maiúscula), `category_id` e `user_id`, combináveis.
+- Mais novos primeiro. `GET /api/recipes` aceita `search` (nome e descrição, sem diferenciar acento nem maiúscula), `category_id`, `user_id` e `max_time` (tempo de preparo máximo, em minutos), combináveis, e `sort`: `recent` (padrão), `quickest` (menor tempo de preparo) ou `favorites` (mais favoritadas). O empate é sempre desfeito pela mais nova.
+- O tempo de preparo é um número, `time_minutes` (1 a 2880); quem mostra "1h 30min" é o front. O vídeo da receita, `video_url`, só aceita link do YouTube e é guardado sempre como `https://www.youtube.com/watch?v={id}`.
 - Página depois da última volta `items` vazio com o `total` certo.
 
 ## Autenticação

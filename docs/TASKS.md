@@ -81,11 +81,11 @@ Backlog em ordem. Só se trabalha na etapa atual; o que surgir no caminho entra 
 
 Lista levantada navegando pelo site (13/10/2026). Aqui fica a parte da API; as telas e o que é só do front estão em [TASKS.md do front](https://github.com/Victor-Novakoski/panda-cooking-front/blob/develop/docs/TASKS.md).
 
-- [ ] Tempo da receita em minutos (inteiro) no lugar do texto livre, com migration convertendo o que já existe ("40", "20 minutos", "1h 30min", "3 horas"); libera ordenar e filtrar por tempo
-- [ ] Quantidade do ingrediente como número + unidade, para o front recalcular por porção; "a gosto" continua valendo, sem número
-- [ ] Ordenação em `GET /api/recipes` (mais novas, mais favoritadas, mais rápidas) e filtro por tempo máximo
-- [ ] Avaliação: tabela de notas de 1 a 5, uma por pessoa por receita; rotas para dar, trocar e tirar a nota; média e total junto com a receita
-- [ ] Vídeo por link do YouTube: campo opcional na receita, aceitando só endereço do YouTube (enviar arquivo de vídeo fica de fora: os uploads moram no banco, com limite de 900 KB)
-- [ ] Categorias pelo admin: `POST /api/categories` só para admin, nome obrigatório e sem repetir (ignorando maiúsculas e acento). Renomear e apagar a decidir; apagar só sem receita na categoria
-- [ ] Perfil público do autor: rota com nome, foto e data de entrada, sem e-mail (as receitas já saem por `GET /api/recipes?user_id=`)
+- [x] Tempo da receita em minutos (`time_minutes`, 1 a 2880) no lugar do texto livre; a migration 000005 converte o que já existe ("40", "20 minutos", "1h 30min", "3 horas") e o que não dá para entender vira 30
+- [x] ~~Quantidade do ingrediente como número + unidade~~: não precisa mexer no banco. O front lê o número do começo do texto ("500g", "3 colheres de sopa", "1/2 xícara") e recalcula; "a gosto" fica como está
+- [x] Ordenação em `GET /api/recipes` (`sort=recent`, `quickest` ou `favorites`) e filtro por tempo máximo (`max_time`)
+- [x] ~~Avaliação com nota~~: decidido não fazer. Numa comunidade, nota baixa influencia quem vê a receita e desanima quem publicou; ficam os favoritos e os comentários
+- [x] Vídeo por link do YouTube: `video_url` opcional na receita, aceitando só endereço do YouTube (enviar arquivo de vídeo fica de fora: os uploads moram no banco, com limite de 900 KB)
+- [x] ~~Categorias pelo admin~~: decidido não fazer. As categorias continuam fixas, criadas pela migration
+- [x] Perfil público do autor: `GET /api/users/{id}` com nome, foto e data de entrada, sem e-mail (as receitas já saem por `GET /api/recipes?user_id=`)
 - [ ] Recuperar senha: token de uso único com validade curta, enviado por e-mail; depende de escolher um serviço de envio e fica para depois do deploy

@@ -192,6 +192,7 @@ func Routes(r *gin.Engine, h Handlers, g Guards) {
 	profile.PATCH("", h.User.Update)
 	profile.DELETE("", h.User.Delete)
 	profile.GET("/favorites", h.User.Favorites)
+	api.GET("/users/:id", h.User.GetPublic)
 
 	api.GET("/categories", h.Category.List)
 

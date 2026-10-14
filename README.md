@@ -11,7 +11,7 @@ Esta é a API, em Go. O front, em Next.js, está em [panda-cooking-front](https:
 - **Sessão segura.** Access token JWT de 15 minutos e refresh token em cookie `HttpOnly`, `SameSite=Strict`, guardado no banco só como hash SHA-256. Cada renovação troca o token; token já usado, apresentado de novo, derruba a sessão inteira (sinal de cópia), com 20 segundos de tolerância para duas abas renovando juntas.
 - **Proteções contra abuso.** 300 requisições por minuto por IP em toda a API, 10 por minuto no login, 10 por hora no cadastro e 30 por minuto na renovação; 5 senhas erradas bloqueiam aquele e-mail por 15 minutos, mesmo de outro IP; login com o mesmo tempo de resposta para e-mail que existe e que não existe; requisição que muda dados vinda de outra origem barrada pelo `http.CrossOriginProtection` do Go.
 - **Erro de validação por campo.** Limite de tamanho em todo texto e lista (até 10 fotos, 50 ingredientes e 50 passos), campo desconhecido recusado, e 422 com a mensagem de cada campo no caminho do JSON (`ingredients[2].amount`), que o front mostra no lugar certo.
-- **Busca que ignora acento:** "pao" acha "Pão de Queijo Mineiro", com `unaccent`, índice de trigramas e `%`/`_` escapados, mais filtro por categoria e por autor e paginação com total.
+- **Busca que ignora acento:** "pao" acha "Pão de Queijo Mineiro", com `unaccent`, índice de trigramas e `%`/`_` escapados, mais filtro por categoria, por autor e por tempo de preparo, ordenação (mais novas, mais rápidas, mais favoritadas) e paginação com total.
 - **Dono de verdade.** Editar e apagar confere o autor; item de outra receita responde 404, como se não existisse, e nada é gravado. Favoritos e perfil usam sempre o usuário do token, nunca um id da URL.
 - **Migrations versionadas em SQL**, embutidas no binário e aplicadas quando a API sobe.
 - **Testes em três níveis:** unidade nos services (com mocks), HTTP nos handlers e integração contra um Postgres de verdade (testcontainers), incluindo as tentativas de mexer em dado de outra pessoa.
@@ -97,7 +97,7 @@ curl -s "$API/recipes?search=pao&per_page=5" | jq '.items[].name'
 # publica uma receita (o category_id vem de GET /api/categories)
 RECEITA=$(curl -s $API/recipes -H "Authorization: Bearer $TOKEN" --json '{
   "name": "Arroz de Forno", "description": "Arroz de forno com frango, milho e queijo gratinado.",
-  "time": "50 minutos", "portions": 6, "category_id": 5,
+  "time_minutes": 50, "portions": 6, "category_id": 5,
   "ingredients": [{"name": "Arroz cozido", "amount": "4 xícaras"}, {"name": "Frango desfiado", "amount": "300 g"}],
   "preparations": [{"description": "Misture tudo numa travessa."}, {"description": "Cubra com queijo e leve ao forno por 20 minutos."}]
 }' | jq -r .id)
@@ -128,7 +128,7 @@ curl -s $API/recipes -H "Authorization: Bearer $TOKEN" --json '{"name":"X","ingr
     "name": "use pelo menos 3 caracteres",
     "portions": "campo obrigatório",
     "preparations": "adicione pelo menos um item",
-    "time": "campo obrigatório"
+    "time_minutes": "campo obrigatório"
   }
 }
 ```
@@ -145,8 +145,9 @@ curl -s $API/recipes -H "Authorization: Bearer $TOKEN" --json '{"name":"X","ingr
 | POST | `/api/auth/refresh`, `/api/auth/logout` | cookie da sessão |
 | GET, PATCH, DELETE | `/api/users/profile` | o próprio usuário |
 | GET | `/api/users/profile/favorites` | o próprio usuário |
+| GET | `/api/users/{id}` | público: nome, foto e data de entrada de qualquer pessoa, sem e-mail |
 | GET | `/api/categories` | público: as 12 categorias |
-| GET | `/api/recipes` | público; aceita `search`, `category_id`, `user_id`, `page` e `per_page` (até 50) |
+| GET | `/api/recipes` | público; aceita `search`, `category_id`, `user_id`, `max_time` (minutos), `sort` (`recent`, `quickest`, `favorites`), `page` e `per_page` (até 50) |
 | GET | `/api/recipes/{id}` | público: a receita com fotos, ingredientes e preparo |
 | GET | `/api/recipes/{id}/comments` | público |
 | POST | `/api/recipes` | logado |

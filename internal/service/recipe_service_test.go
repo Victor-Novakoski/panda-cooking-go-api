@@ -18,7 +18,7 @@ const recipeID = "3d6f9a2c-8b1e-4f7a-9c0d-5e2b8a1f6c47"
 
 func storedRecipe() *model.Recipe {
 	return &model.Recipe{
-		ID: recipeID, Name: "Bolo de fubá", Description: "Bolo simples de fubá", Time: "50 minutos", Portions: 8,
+		ID: recipeID, Name: "Bolo de fubá", Description: "Bolo simples de fubá", TimeMinutes: 50, Portions: 8,
 		UserID: userID, CategoryID: 12,
 		User:         model.User{ID: userID, Name: "Maria", Email: "maria@email.com", PasswordHash: "hash"},
 		Category:     model.Category{ID: 12, Name: "Pães e Bolos"},
@@ -30,7 +30,7 @@ func storedRecipe() *model.Recipe {
 
 func recipeInput() service.RecipeInput {
 	return service.RecipeInput{
-		Name: "Bolo de fubá", Description: "Bolo simples de fubá", Time: "50 minutos", Portions: 8, CategoryID: 12,
+		Name: "Bolo de fubá", Description: "Bolo simples de fubá", TimeMinutes: 50, Portions: 8, CategoryID: 12,
 		Ingredients:  []service.IngredientRecipeInput{{Name: "  Farinha   de Trigo ", Amount: "2 xícaras"}},
 		Preparations: []service.PreparationInput{{Description: "Misture tudo."}},
 	}

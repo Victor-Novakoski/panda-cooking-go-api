@@ -6,8 +6,9 @@ type Recipe struct {
 	ID          string `gorm:"primaryKey;default:gen_random_uuid()"`
 	Name        string
 	Description string
-	Time        string
+	TimeMinutes int
 	Portions    int
+	VideoURL    string
 	UserID      string
 	CategoryID  uint
 	CreatedAt   time.Time

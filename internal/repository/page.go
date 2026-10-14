@@ -13,4 +13,17 @@ type RecipeFilter struct {
 	Search     string
 	CategoryID uint
 	UserID     string
+	// MaxTimeMinutes: só as receitas que ficam prontas em até esse tempo.
+	MaxTimeMinutes int
+	// Sort vazio é SortRecent.
+	Sort RecipeSort
 }
+
+// RecipeSort é a ordem da listagem de receitas.
+type RecipeSort string
+
+const (
+	SortRecent    RecipeSort = "recent"    // mais novas primeiro
+	SortQuickest  RecipeSort = "quickest"  // menor tempo de preparo primeiro
+	SortFavorites RecipeSort = "favorites" // mais favoritadas primeiro
+)

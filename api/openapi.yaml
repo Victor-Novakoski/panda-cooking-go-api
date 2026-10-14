@@ -241,6 +241,25 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "422": { $ref: "#/components/responses/Validation" }
 
+  /api/users/{id}:
+    get:
+      tags: [Usuários]
+      summary: Ver o perfil público de uma pessoa
+      description: O que qualquer visitante pode ver. As receitas dela saem em `GET /api/recipes?user_id=`.
+      operationId: getPublicUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Perfil público.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicUser" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /api/categories:
     get:
       tags: [Receitas]
@@ -260,7 +279,9 @@ paths:
     get:
       tags: [Receitas]
       summary: Listar e buscar receitas
-      description: Das mais novas para as mais antigas. A busca ignora acento e maiúscula e procura no nome e na descrição.
+      description: >-
+        Das mais novas para as mais antigas, a não ser que `sort` peça outra ordem.
+        A busca ignora acento e maiúscula e procura no nome e na descrição.
       operationId: listRecipes
       parameters:
         - name: search
@@ -274,6 +295,17 @@ paths:
           in: query
           description: Só as receitas desse autor.
           schema: { type: string, format: uuid }
+        - name: max_time
+          in: query
+          description: Só as receitas que ficam prontas em até esse tempo, em minutos.
+          schema: { type: integer, minimum: 1, maximum: 2880 }
+          example: 30
+        - name: sort
+          in: query
+          description: >-
+            `recent`: mais novas primeiro. `quickest`: menor tempo de preparo primeiro.
+            `favorites`: mais favoritadas primeiro. O empate é sempre desfeito pela mais nova.
+          schema: { type: string, enum: [recent, quickest, favorites], default: recent }
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/RecipesPerPage"
       responses:
@@ -890,6 +922,16 @@ components:
         is_adm: { type: boolean }
         created_at: { type: string, format: date-time }
 
+    PublicUser:
+      type: object
+      description: Perfil que qualquer visitante vê. Sem e-mail.
+      required: [id, name, image_profile, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        image_profile: { type: string, description: Link da foto; vazio quando não tem. }
+        created_at: { type: string, format: date-time }
+
     Author:
       type: object
       description: O que é público de quem escreveu a receita ou o comentário.
@@ -908,12 +950,12 @@ components:
 
     RecipeSummary:
       type: object
-      required: [id, name, description, time, portions, image_url, category, author, created_at]
+      required: [id, name, description, time_minutes, portions, image_url, category, author, created_at]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
         description: { type: string }
-        time: { type: string, example: 40 minutos }
+        time_minutes: { type: integer, description: Tempo de preparo em minutos., example: 40 }
         portions: { type: integer }
         image_url: { type: string, description: Primeira foto; vazio quando não tem. }
         category: { $ref: "#/components/schemas/Category" }
@@ -922,13 +964,16 @@ components:
 
     Recipe:
       type: object
-      required: [id, name, description, time, portions, category, author, images, ingredients, preparations, created_at, updated_at]
+      required: [id, name, description, time_minutes, portions, video_url, category, author, images, ingredients, preparations, created_at, updated_at]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
         description: { type: string }
-        time: { type: string }
+        time_minutes: { type: integer, description: Tempo de preparo em minutos. }
         portions: { type: integer }
+        video_url:
+          type: string
+          description: Vídeo da receita no YouTube, sempre como `https://www.youtube.com/watch?v={id}`; vazio quando não tem.
         category: { $ref: "#/components/schemas/Category" }
         author: { $ref: "#/components/schemas/Author" }
         images:
@@ -945,14 +990,15 @@ components:
 
     RecipeInput:
       type: object
-      required: [name, description, time, portions, category_id, ingredients, preparations]
+      required: [name, description, time_minutes, portions, category_id, ingredients, preparations]
       additionalProperties: false
       properties:
         name: { type: string, minLength: 3, maxLength: 120 }
         description: { type: string, minLength: 10, maxLength: 2000 }
-        time: { type: string, maxLength: 50, example: 1h 30min }
+        time_minutes: { type: integer, minimum: 1, maximum: 2880, description: Tempo de preparo em minutos (até dois dias)., example: 90 }
         portions: { type: integer, minimum: 1, maximum: 100 }
         category_id: { type: integer, minimum: 1 }
+        video_url: { $ref: "#/components/schemas/VideoURL" }
         images:
           type: array
           maxItems: 10
@@ -974,9 +1020,18 @@ components:
       properties:
         name: { type: string, minLength: 3, maxLength: 120 }
         description: { type: string, minLength: 10, maxLength: 2000 }
-        time: { type: string, minLength: 1, maxLength: 50 }
+        time_minutes: { type: integer, minimum: 1, maximum: 2880 }
         portions: { type: integer, minimum: 1, maximum: 100 }
         category_id: { type: integer, minimum: 1 }
+        video_url: { $ref: "#/components/schemas/VideoURL" }
+
+    VideoURL:
+      type: string
+      maxLength: 200
+      description: >-
+        Link de um vídeo do YouTube (`watch?v=`, `youtu.be/`, `/shorts/`, `/embed/` ou `/live/`).
+        Qualquer outro endereço é recusado. Vazio: a receita fica sem vídeo.
+      example: https://youtu.be/dQw4w9WgXcQ
 
     Image:
       type: object

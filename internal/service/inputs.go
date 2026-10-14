@@ -45,9 +45,10 @@ func (in *LoginInput) Normalize() { in.Email = normalizeEmail(in.Email) }
 type RecipeInput struct {
 	Name         string                  `json:"name" binding:"required,min=3,max=120"`
 	Description  string                  `json:"description" binding:"required,min=10,max=2000"`
-	Time         string                  `json:"time" binding:"required,max=50"`
+	TimeMinutes  int                     `json:"time_minutes" binding:"required,min=1,max=2880"`
 	Portions     int                     `json:"portions" binding:"required,min=1,max=100"`
 	CategoryID   uint                    `json:"category_id" binding:"required,max=9223372036854775807"`
+	VideoURL     string                  `json:"video_url" binding:"omitempty,max=200,youtubeurl"`
 	Images       []ImageRecipeInput      `json:"images" binding:"max=10,dive"`
 	Ingredients  []IngredientRecipeInput `json:"ingredients" binding:"required,min=1,max=50,dive"`
 	Preparations []PreparationInput      `json:"preparations" binding:"required,min=1,max=50,dive"`
@@ -56,7 +57,7 @@ type RecipeInput struct {
 func (in *RecipeInput) Normalize() {
 	in.Name = strings.TrimSpace(in.Name)
 	in.Description = strings.TrimSpace(in.Description)
-	in.Time = strings.TrimSpace(in.Time)
+	in.VideoURL = strings.TrimSpace(in.VideoURL)
 	for i := range in.Images {
 		in.Images[i].Normalize()
 	}
@@ -68,19 +69,21 @@ func (in *RecipeInput) Normalize() {
 	}
 }
 
-// UpdateRecipeInput (PATCH) muda só os campos enviados.
+// UpdateRecipeInput (PATCH) muda só os campos enviados. video_url vazio tira
+// o vídeo.
 type UpdateRecipeInput struct {
 	Name        *string `json:"name" binding:"omitempty,min=3,max=120"`
 	Description *string `json:"description" binding:"omitempty,min=10,max=2000"`
-	Time        *string `json:"time" binding:"omitempty,min=1,max=50"`
+	TimeMinutes *int    `json:"time_minutes" binding:"omitempty,min=1,max=2880"`
 	Portions    *int    `json:"portions" binding:"omitempty,min=1,max=100"`
 	CategoryID  *uint   `json:"category_id" binding:"omitempty,min=1,max=9223372036854775807"`
+	VideoURL    *string `json:"video_url" binding:"omitempty,max=200,youtubeurl"`
 }
 
 func (in *UpdateRecipeInput) Normalize() {
 	trimPtr(in.Name)
 	trimPtr(in.Description)
-	trimPtr(in.Time)
+	trimPtr(in.VideoURL)
 }
 
 type ImageRecipeInput struct {
@@ -111,11 +114,15 @@ type CommentInput struct {
 
 func (in *CommentInput) Normalize() { in.Description = strings.TrimSpace(in.Description) }
 
-// ListRecipesQuery são os filtros da listagem de receitas (query string).
+// ListRecipesQuery são os filtros e a ordem da listagem de receitas (query
+// string). Sort: recent (padrão, mais novas), quickest (menor tempo de
+// preparo) ou favorites (mais favoritadas).
 type ListRecipesQuery struct {
 	Search     string `form:"search" binding:"max=100"`
 	CategoryID uint   `form:"category_id" binding:"max=9223372036854775807"`
 	UserID     string `form:"user_id" binding:"omitempty,uuid"`
+	MaxTime    int    `form:"max_time" binding:"omitempty,min=1,max=2880"`
+	Sort       string `form:"sort" binding:"omitempty,oneof=recent quickest favorites"`
 	Page       int    `form:"page" binding:"omitempty,min=1,max=10000"`
 	PerPage    int    `form:"per_page" binding:"omitempty,min=1,max=50"`
 }
