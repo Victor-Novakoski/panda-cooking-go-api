@@ -89,3 +89,15 @@ Lista levantada navegando pelo site (13/10/2026). Aqui fica a parte da API; as t
 - [x] ~~Categorias pelo admin~~: decidido não fazer. As categorias continuam fixas, criadas pela migration
 - [x] Perfil público do autor: `GET /api/users/{id}` com nome, foto e data de entrada, sem e-mail (as receitas já saem por `GET /api/recipes?user_id=`)
 - [ ] Recuperar senha: token de uso único com validade curta, enviado por e-mail; depende de escolher um serviço de envio e fica para depois do deploy
+
+## Etapa 7 — Próximas melhorias
+
+Segunda leva de sugestões (13/10/2026), ainda sem nada começado. Aqui fica a parte da API; o que é só do front está em [TASKS.md do front](https://github.com/Victor-Novakoski/panda-cooking-front/blob/develop/docs/TASKS.md). Continuam valendo o deploy (etapa 4) e o recuperar senha (etapa 6).
+
+- [ ] Buscar por ingrediente: filtro em `GET /api/recipes` pelas receitas que têm os ingredientes pedidos (os nomes já são guardados normalizados na tabela `ingredients`)
+- [ ] Moderação: denúncia de receita e de comentário (quem denunciou, motivo, quando) e o admin podendo apagar receita imprópria; hoje o admin só apaga comentário
+- [ ] Limpeza de fotos sem uso: as fotos enviadas ficam no banco (`uploads`), e a que foi enviada e nunca usada numa receita ou num perfil fica lá para sempre; apagar as órfãs com mais de um dia
+
+**Decidido não fazer**
+
+- Contagem de favoritos na listagem de receitas: vira placar e influencia quem vê, o mesmo motivo de não ter nota
