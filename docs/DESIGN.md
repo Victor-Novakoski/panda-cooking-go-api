@@ -55,4 +55,4 @@ Especificação completa (rotas, corpos, respostas e erros) em [`api/openapi.yam
 - As outras rotas recebem o access token em `Authorization: Bearer <token>`.
 - `POST /api/auth/refresh` troca o refresh token por um novo e devolve um access token novo. `POST /api/auth/logout` encerra a sessão e apaga os cookies.
 - Em produção os cookies têm `Secure` (só HTTPS).
-- Recurso de outra pessoa: 403 (ver [SECURITY.md](SECURITY.md#6-idor)).
+- Recurso de outra pessoa: 403 (ver [segurança: dados](seguranca/dados.md)).
