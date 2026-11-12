@@ -1,6 +1,6 @@
 name: Fluxo de branches
 
-# A main só recebe PR vindo da develop (docs/RULES.md). Com este check
+# A main só recebe PR vindo da develop (CLAUDE.md). Com este check
 # obrigatório na proteção da main, um PR de feature direto para a main
 # não pode ser mergeado.
 #

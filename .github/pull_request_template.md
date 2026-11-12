@@ -10,5 +10,5 @@
 
 - [ ] Título no padrão Conventional Commits (`feat: ...`, `fix: ...`)
 - [ ] Testes novos ou atualizados
-- [ ] `docs/` atualizados, se mudou rota, variável ou decisão
-- [ ] Revisei o [checklist de segurança](../docs/RULES.md)
+- [ ] Docs atualizados (`CLAUDE.md` do módulo, OpenAPI, decisão nova), se mudou rota, variável ou decisão
+- [ ] Revisei o [checklist de segurança](../CLAUDE.md)
