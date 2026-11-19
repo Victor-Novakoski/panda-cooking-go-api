@@ -77,6 +77,9 @@ func (s *UserService) Update(ctx context.Context, userID string, input UpdateUse
 	if err != nil {
 		return nil, err
 	}
+	if user.IsDemo {
+		return nil, ErrDemoUser
+	}
 
 	if input.Name != nil {
 		if *input.Name == "" {
@@ -97,10 +100,14 @@ func (s *UserService) Update(ctx context.Context, userID string, input UpdateUse
 }
 
 // Delete apaga a conta com tudo o que ela criou (receitas, comentários,
-// favoritos e sessões).
+// favoritos e sessões). A conta de demonstração não pode ser apagada.
 func (s *UserService) Delete(ctx context.Context, userID string) error {
-	if _, err := s.find(ctx, userID); err != nil {
+	user, err := s.find(ctx, userID)
+	if err != nil {
 		return err
+	}
+	if user.IsDemo {
+		return ErrDemoUser
 	}
 	return s.repo.Delete(ctx, userID)
 }

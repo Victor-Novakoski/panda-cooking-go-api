@@ -201,7 +201,9 @@ func TestMigrations(t *testing.T) {
 		// a volta para a versão atual não pode depender do resto do teste
 		t.Cleanup(func() { require.NoError(t, database.Migrate(ctx, db, dbURL)) })
 
-		author := createUser(t, "tempo@email.com")
+		// SQL direto: o model já tem colunas de migrations mais novas (is_demo)
+		var authorID string
+		require.NoError(t, db.Raw("INSERT INTO users (name, email, password_hash) VALUES ('Teste', 'tempo@email.com', 'hash') RETURNING id").Scan(&authorID).Error)
 		times := map[string]int{
 			"40":                  40,
 			"20 minutos":          20,
@@ -220,7 +222,7 @@ func TestMigrations(t *testing.T) {
 		for text := range times {
 			require.NoError(t, db.Exec(
 				"INSERT INTO recipes (name, description, time, portions, user_id, category_id) VALUES (?, 'descrição', ?, 1, ?, 1)",
-				text, text, author.ID).Error)
+				text, text, authorID).Error)
 		}
 
 		require.NoError(t, m.Up())

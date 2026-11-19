@@ -15,6 +15,7 @@ type UserResponse struct {
 	Email        string    `json:"email"`
 	ImageProfile string    `json:"image_profile"`
 	IsAdm        bool      `json:"is_adm"`
+	IsDemo       bool      `json:"is_demo"`
 	CreatedAt    time.Time `json:"created_at"`
 }
 
@@ -64,6 +65,7 @@ type RecipeResponse struct {
 	Images       []ImageRecipeResponse      `json:"images"`
 	Ingredients  []IngredientRecipeResponse `json:"ingredients"`
 	Preparations []PreparationResponse      `json:"preparations"`
+	IsDemo       bool                       `json:"is_demo"`
 	CreatedAt    time.Time                  `json:"created_at"`
 	UpdatedAt    time.Time                  `json:"updated_at"`
 }
@@ -100,6 +102,7 @@ func toUserResponse(u *model.User) UserResponse {
 		Email:        u.Email,
 		ImageProfile: u.ImageProfile,
 		IsAdm:        u.IsAdm,
+		IsDemo:       u.IsDemo,
 		CreatedAt:    u.CreatedAt,
 	}
 }
@@ -148,6 +151,7 @@ func toRecipeResponse(r model.Recipe) RecipeResponse {
 		Images:       make([]ImageRecipeResponse, 0, len(r.Images)),
 		Ingredients:  make([]IngredientRecipeResponse, 0, len(r.Ingredients)),
 		Preparations: make([]PreparationResponse, 0, len(r.Preparations)),
+		IsDemo:       r.IsDemo,
 		CreatedAt:    r.CreatedAt,
 		UpdatedAt:    r.UpdatedAt,
 	}

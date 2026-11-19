@@ -299,7 +299,9 @@ func (s *RecipeService) find(ctx context.Context, id string) (*model.Recipe, err
 }
 
 // findOwned busca a receita e confere se é de quem pede; forbidden é o erro
-// devolvido quando não é.
+// devolvido quando não é. Todo caminho que muda ou apaga a receita (ou um
+// item dela) passa por aqui, então é aqui que a receita de demonstração é
+// recusada.
 func (s *RecipeService) findOwned(ctx context.Context, recipeID, userID string, forbidden error) (*model.Recipe, error) {
 	recipe, err := s.find(ctx, recipeID)
 	if err != nil {
@@ -307,6 +309,9 @@ func (s *RecipeService) findOwned(ctx context.Context, recipeID, userID string, 
 	}
 	if recipe.UserID != userID {
 		return nil, forbidden
+	}
+	if recipe.IsDemo {
+		return nil, ErrDemoRecipe
 	}
 	return recipe, nil
 }

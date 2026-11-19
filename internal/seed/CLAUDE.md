@@ -9,6 +9,7 @@ Dados de demonstração: três usuários e dezoito receitas brasileiras, com fot
 - `make seed` (`cmd/seed`) **apaga todos os dados** antes de popular. Só em desenvolvimento.
 - Receita nova entra em `demoRecipes` (`data.go`): o autor é a posição em `demoUsers`, a categoria é o **nome** (nunca o id: o id depende da ordem de criação).
 - Os textos seguem os limites da API; `data_test.go` confere.
+- Tudo que o seed cria leva `is_demo = true` (usuários e receitas): o service recusa mudar ou apagar (decisão 054). Usuário novo no seed precisa de migration que marque o e-mail dele nos bancos que já existem.
 
 ## Armadilhas conhecidas
 
@@ -17,4 +18,4 @@ Dados de demonstração: três usuários e dezoito receitas brasileiras, com fot
 
 ## Ver também
 
-`docs/decisoes/` 016, 017, 018.
+`docs/decisoes/` 016, 017, 018, 054.

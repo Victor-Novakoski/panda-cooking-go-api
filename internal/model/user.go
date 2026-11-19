@@ -9,6 +9,7 @@ type User struct {
 	PasswordHash string
 	ImageProfile string
 	IsAdm        bool
+	IsDemo       bool
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
