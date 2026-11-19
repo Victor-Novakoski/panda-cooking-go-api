@@ -58,6 +58,20 @@ func (s *UserService) GetProfile(ctx context.Context, userID string) (*UserRespo
 	return &resp, nil
 }
 
+// GetPublic é o perfil que qualquer visitante vê.
+func (s *UserService) GetPublic(ctx context.Context, userID string) (*PublicUserResponse, error) {
+	user, err := s.find(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return &PublicUserResponse{
+		ID:           user.ID,
+		Name:         user.Name,
+		ImageProfile: user.ImageProfile,
+		CreatedAt:    user.CreatedAt,
+	}, nil
+}
+
 func (s *UserService) Update(ctx context.Context, userID string, input UpdateUserInput) (*UserResponse, error) {
 	user, err := s.find(ctx, userID)
 	if err != nil {

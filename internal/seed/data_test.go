@@ -25,7 +25,7 @@ func TestDemoRecipes_PassamNaValidacaoDaAPI(t *testing.T) {
 			input := service.RecipeInput{
 				Name:        r.recipe.Name,
 				Description: r.recipe.Description,
-				Time:        r.recipe.Time,
+				TimeMinutes: r.recipe.TimeMinutes,
 				Portions:    r.recipe.Portions,
 				CategoryID:  1,
 			}
