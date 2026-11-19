@@ -4,7 +4,7 @@
 
 API REST de uma rede de receitas: cadastro e login, receitas com fotos, ingredientes e modo de preparo, busca sem acento, categorias, comentários e favoritos.
 
-Esta é a API, em Go. O front, em Next.js, está em [panda-cooking-front](https://github.com/Victor-Novakoski/panda-cooking-front). Os dois sobem juntos com um `docker compose up` daqui; o deploy é a próxima etapa.
+Esta é a API, em Go. O front, em Next.js, está em [panda-cooking-front](https://github.com/Victor-Novakoski/panda-cooking-front). O site está no ar em **https://pandacooking.vercel.app** (a primeira visita depois de um tempo parado pode levar até um minuto, enquanto a API acorda no plano grátis). Os dois sobem juntos com um `docker compose up` daqui.
 
 ## Destaques
 
