@@ -66,6 +66,8 @@ Na primeira subida a API aplica as migrations e cria dezoito receitas e três us
 | João Cozinheiro | `joao@pandacooking.com` | não |
 | Ana Paula Gourmet | `ana@pandacooking.com` | não |
 
+Como a senha é pública, as contas e as receitas de demonstração não podem ser alteradas nem apagadas; dá para comentar, favoritar e publicar receitas novas com elas.
+
 API e front recarregam sozinhos ao salvar um arquivo. Se o front estiver em outra pasta, aponte `FRONT_DIR` no `.env`; para subir só banco e API, `docker compose up api`.
 
 > Já tinha subido uma versão antiga? Ela criava o banco sem migrations. Rode `docker compose down -v` uma vez para recriar o banco.

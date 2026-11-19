@@ -23,7 +23,8 @@ Regra de negócio, validação das entradas (`inputs.go`) e DTOs de resposta (`r
 - **Upload:** até 900 KB, tipo pelos primeiros bytes (`http.DetectContentType`), endereço relativo `/api/uploads/{id}`. Fotos enviadas e nunca usadas ficam no banco.
 - **Vídeo:** só YouTube, guardado sempre como `https://www.youtube.com/watch?v={id}` (`video.go`).
 - Comentário e perfil público mostram do autor só id, nome e foto.
+- **Dados de demonstração** (`is_demo`): receita do seed não muda nem perde item (checado em `findOwned`) e conta do seed não muda nem é apagada. Comentar, favoritar e publicar continuam liberados.
 
 ## Ver também
 
-`docs/decisoes/` 008, 009, 011, 022, 023, 027, 028, 029–031, 038, 043, 045, 046.
+`docs/decisoes/` 008, 009, 011, 022, 023, 027, 028, 029–031, 038, 043, 045, 046, 054.
