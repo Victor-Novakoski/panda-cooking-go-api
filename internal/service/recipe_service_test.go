@@ -307,3 +307,50 @@ func TestRecipeService_Items(t *testing.T) {
 		assert.Equal(t, "https://img.exemplo.com/nova.jpg", saved.URL)
 	})
 }
+
+// A senha das contas de demonstração é pública: nem o dono muda ou apaga a
+// receita que o seed criou, nem os itens dela.
+func TestRecipeService_DemoRecipe(t *testing.T) {
+	demo := func() *model.Recipe {
+		r := storedRecipe()
+		r.IsDemo = true
+		return r
+	}
+	repo := &mocks.RecipeRepoMock{FindByIDFn: findRecipe(demo())}
+	svc := service.NewRecipeService(repo, categories(true))
+	name := "Outro nome"
+
+	_, err := svc.Update(ctx, recipeID, userID, service.UpdateRecipeInput{Name: &name})
+	assert.ErrorIs(t, err, service.ErrDemoRecipe)
+	_, err = svc.Replace(ctx, recipeID, userID, recipeInput())
+	assert.ErrorIs(t, err, service.ErrDemoRecipe)
+	assert.ErrorIs(t, svc.Delete(ctx, recipeID, userID), service.ErrDemoRecipe)
+
+	img := service.ImageRecipeInput{URL: "https://img.exemplo.com/x.jpg"}
+	_, err = svc.AddImage(ctx, recipeID, userID, img)
+	assert.ErrorIs(t, err, service.ErrDemoRecipe)
+	_, err = svc.UpdateImage(ctx, recipeID, userID, 1, img)
+	assert.ErrorIs(t, err, service.ErrDemoRecipe)
+	assert.ErrorIs(t, svc.DeleteImage(ctx, recipeID, userID, 1), service.ErrDemoRecipe)
+
+	_, err = svc.AddIngredient(ctx, recipeID, userID, service.IngredientRecipeInput{Name: "sal", Amount: "1 pitada"})
+	assert.ErrorIs(t, err, service.ErrDemoRecipe)
+	assert.ErrorIs(t, svc.DeleteIngredient(ctx, recipeID, userID, 1), service.ErrDemoRecipe)
+
+	prep := service.PreparationInput{Description: "Outro passo."}
+	_, err = svc.AddPreparation(ctx, recipeID, userID, prep)
+	assert.ErrorIs(t, err, service.ErrDemoRecipe)
+	_, err = svc.UpdatePreparation(ctx, recipeID, userID, 1, prep)
+	assert.ErrorIs(t, err, service.ErrDemoRecipe)
+	assert.ErrorIs(t, svc.DeletePreparation(ctx, recipeID, userID, 1), service.ErrDemoRecipe)
+
+	t.Run("outra pessoa continua recebendo o 403 de sempre", func(t *testing.T) {
+		assert.ErrorIs(t, svc.Delete(ctx, recipeID, otherID), service.ErrForbiddenDelRecipe)
+	})
+
+	t.Run("a resposta diz que é de demonstração", func(t *testing.T) {
+		resp, err := svc.GetByID(ctx, recipeID)
+		require.NoError(t, err)
+		assert.True(t, resp.IsDemo)
+	})
+}

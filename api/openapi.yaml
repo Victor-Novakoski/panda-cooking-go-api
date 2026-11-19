@@ -208,6 +208,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/User" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/DemoData" }
         "422": { $ref: "#/components/responses/Validation" }
     delete:
       tags: [Usuários]
@@ -219,6 +220,7 @@ paths:
       responses:
         "204": { description: Conta apagada. }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/DemoData" }
         "404": { $ref: "#/components/responses/NotFound" }
 
   /api/users/profile/favorites:
@@ -807,7 +809,14 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     Forbidden:
-      description: A receita ou o comentário é de outra pessoa.
+      description: >-
+        A receita ou o comentário é de outra pessoa, ou a receita é de
+        demonstração (`is_demo`), que ninguém muda nem apaga.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    DemoData:
+      description: A conta é de demonstração (`is_demo`) e não pode ser alterada nem apagada.
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -913,13 +922,14 @@ components:
 
     User:
       type: object
-      required: [id, name, email, image_profile, is_adm, created_at]
+      required: [id, name, email, image_profile, is_adm, is_demo, created_at]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
         email: { type: string, format: email }
         image_profile: { type: string, description: Link da foto; vazio quando não tem. }
         is_adm: { type: boolean }
+        is_demo: { type: boolean, description: Conta de demonstração (senha pública); o perfil e a conta não mudam. }
         created_at: { type: string, format: date-time }
 
     PublicUser:
@@ -964,7 +974,7 @@ components:
 
     Recipe:
       type: object
-      required: [id, name, description, time_minutes, portions, video_url, category, author, images, ingredients, preparations, created_at, updated_at]
+      required: [id, name, description, time_minutes, portions, video_url, category, author, images, ingredients, preparations, is_demo, created_at, updated_at]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
@@ -985,6 +995,7 @@ components:
         preparations:
           type: array
           items: { $ref: "#/components/schemas/Preparation" }
+        is_demo: { type: boolean, description: Receita criada pelo seed de demonstração; ninguém muda nem apaga. }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 

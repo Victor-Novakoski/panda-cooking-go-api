@@ -82,6 +82,7 @@ func populate(tx *gorm.DB, passwordHash string, now time.Time) error {
 			PasswordHash: passwordHash,
 			ImageProfile: u.image,
 			IsAdm:        u.isAdm,
+			IsDemo:       true,
 			CreatedAt:    start,
 			UpdatedAt:    start,
 		}
@@ -123,6 +124,7 @@ func createRecipe(tx *gorm.DB, r demoRecipe, users []string, categoryID uint, cr
 	recipe := r.recipe
 	recipe.UserID = users[r.author]
 	recipe.CategoryID = categoryID
+	recipe.IsDemo = true
 	recipe.CreatedAt = createdAt
 	recipe.UpdatedAt = createdAt
 	if err := tx.Omit("User", "Category", "Images", "Ingredients", "Preparations").Create(&recipe).Error; err != nil {

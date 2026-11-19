@@ -58,6 +58,11 @@ var (
 	ErrForbiddenEditComment = newError(KindForbidden, "sem permissão para editar este comentário")
 	ErrForbiddenDelComment  = newError(KindForbidden, "sem permissão para apagar este comentário")
 
+	// A senha das contas de demonstração é pública: o que o seed criou não
+	// muda, para o próximo visitante encontrar o site igual.
+	ErrDemoRecipe = newError(KindForbidden, "receitas de demonstração não podem ser alteradas nem apagadas")
+	ErrDemoUser   = newError(KindForbidden, "a conta de demonstração não pode ser alterada nem apagada")
+
 	ErrAlreadyFavorite = newError(KindConflict, "receita já está nos favoritos")
 	ErrEmailTaken      = fieldError(KindConflict, "email", "e-mail já cadastrado")
 
