@@ -159,3 +159,21 @@ func TestInputs_Normalize(t *testing.T) {
 	assert.Equal(t, "Misture.", recipe.Preparations[0].Description)
 	assert.Equal(t, "https://img.exemplo.com/b.jpg", recipe.Images[0].URL)
 }
+
+// A senha das contas de demonstração é pública: o perfil e a conta não mudam.
+func TestUserService_DemoUser(t *testing.T) {
+	repo := &mocks.UserRepoMock{
+		FindByIDFn: func(context.Context, string) (*model.User, error) {
+			return &model.User{ID: userID, Name: "Chef Maria", IsDemo: true}, nil
+		},
+	}
+	svc := service.NewUserService(repo)
+
+	_, err := svc.Update(ctx, userID, service.UpdateUserInput{Name: ptr("Outro nome")})
+	assert.ErrorIs(t, err, service.ErrDemoUser)
+	assert.ErrorIs(t, svc.Delete(ctx, userID), service.ErrDemoUser)
+
+	resp, err := svc.GetProfile(ctx, userID)
+	require.NoError(t, err)
+	assert.True(t, resp.IsDemo)
+}

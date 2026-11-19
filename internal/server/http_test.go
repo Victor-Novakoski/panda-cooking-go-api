@@ -665,3 +665,85 @@ func TestNewRejectsInvalidTrustedOrigin(t *testing.T) {
 
 	assert.Error(t, err)
 }
+
+// Dados de demonstração: a senha é pública, então o que o seed criou não muda.
+func TestDemoData(t *testing.T) {
+	withDemoRecipe := func(e *env) {
+		e.withRecipe()
+		e.recipes.FindByIDFn = func(context.Context, string) (*model.Recipe, error) {
+			r := storedRecipe()
+			r.IsDemo = true
+			return r, nil
+		}
+	}
+	withDemoUser := func(e *env) {
+		e.users.FindByIDFn = func(context.Context, string) (*model.User, error) {
+			return &model.User{ID: userID, Name: "Maria", Email: "maria@email.com", IsAdm: true, IsDemo: true}, nil
+		}
+	}
+	const recipeMsg = "receitas de demonstração não podem ser alteradas nem apagadas"
+	const userMsg = "a conta de demonstração não pode ser alterada nem apagada"
+
+	t.Run("a receita diz que é de demonstração", func(t *testing.T) {
+		e := newEnv(t)
+		withDemoRecipe(e)
+
+		w := e.do(http.MethodGet, "/api/recipes/"+recipeID, nil)
+
+		require.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, true, decode[map[string]any](t, w)["is_demo"])
+	})
+
+	for _, tc := range []struct {
+		method, path string
+		body         any
+	}{
+		{http.MethodPut, "/api/recipes/" + recipeID, validRecipe()},
+		{http.MethodPatch, "/api/recipes/" + recipeID, map[string]string{"name": "Outro nome"}},
+		{http.MethodDelete, "/api/recipes/" + recipeID, nil},
+		{http.MethodDelete, "/api/recipes/" + recipeID + "/images/1", nil},
+		{http.MethodDelete, "/api/recipes/" + recipeID + "/ingredients/1", nil},
+		{http.MethodDelete, "/api/recipes/" + recipeID + "/preparations/1", nil},
+	} {
+		t.Run("o dono não muda a receita: "+tc.method+" "+tc.path, func(t *testing.T) {
+			e := newEnv(t)
+			withDemoRecipe(e)
+
+			w := e.as(userID, true, tc.method, tc.path, tc.body)
+
+			assert.Equal(t, http.StatusForbidden, w.Code, w.Body.String())
+			assert.Equal(t, recipeMsg, decode[errorBody](t, w).Error)
+		})
+	}
+
+	t.Run("o perfil diz que é de demonstração", func(t *testing.T) {
+		e := newEnv(t)
+		withDemoUser(e)
+
+		w := e.as(userID, true, http.MethodGet, "/api/users/profile", nil)
+
+		require.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, true, decode[map[string]any](t, w)["is_demo"])
+	})
+
+	t.Run("não muda o perfil", func(t *testing.T) {
+		e := newEnv(t)
+		withDemoUser(e)
+
+		w := e.as(userID, true, http.MethodPatch, "/api/users/profile", map[string]string{"name": "Outro nome"})
+
+		assert.Equal(t, http.StatusForbidden, w.Code)
+		assert.Equal(t, userMsg, decode[errorBody](t, w).Error)
+	})
+
+	t.Run("não apaga a conta nem os cookies", func(t *testing.T) {
+		e := newEnv(t)
+		withDemoUser(e)
+
+		w := e.as(userID, true, http.MethodDelete, "/api/users/profile", nil)
+
+		assert.Equal(t, http.StatusForbidden, w.Code)
+		assert.Equal(t, userMsg, decode[errorBody](t, w).Error)
+		assert.Nil(t, cookie(w, handler.RefreshCookie))
+	})
+}

@@ -11,6 +11,7 @@ type Recipe struct {
 	VideoURL    string
 	UserID      string
 	CategoryID  uint
+	IsDemo      bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 
